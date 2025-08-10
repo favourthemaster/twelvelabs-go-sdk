@@ -48,10 +48,10 @@ import (
 )
 
 req := models.SearchRequest{
-    Query: "A woman vlogs about her summer day",
+    Query:   "A woman vlogs about her summer day",
     IndexID: "your_index_id",
 }
-resp, err := client.Search.Search(req)
+resp, err := client.Search.SearchByText(req.IndexID, req.QueryText, []string{"visual", "audio"}, nil)
 if err != nil {
     // handle error
 }
@@ -63,17 +63,31 @@ for _, result := range resp.Data {
 ### 4. Video Upload Example
 
 ```go
-videoID, err := client.ManageVideos.Upload("/path/to/video.mp4")
+task, err := client.Tasks.Create(&models.TasksCreateRequest{
+    IndexID:   "index_id",
+    VideoFile: "./assets/example.mp4",
+})
 if err != nil {
     // handle error
 }
-fmt.Println("Uploaded video ID:", videoID)
+fmt.Println("Uploaded video ID:", task.VideoID)
 ```
 
 ### 5. Embeddings Example
 
 ```go
-embedding, err := client.Embed.GetEmbedding("your_text_or_video_id")
+// For text embedding
+embedding, err := client.Embed.CreateTextEmbedding("Marengo-retrieval-2.7", "A person running in the park")
+if err != nil {
+    // handle error
+}
+fmt.Println(embedding)
+
+// Or, for a generic embedding request:
+embedding, err = client.Embed.Create(&wrappers.EmbedWrapperRequest{
+    ModelName: "Marengo-retrieval-2.7",
+    Text:      "A person running in the park",
+})
 if err != nil {
     // handle error
 }

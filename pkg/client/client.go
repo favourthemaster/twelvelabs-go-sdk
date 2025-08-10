@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	DefaultBaseURL = "https://api.twelvelabs.io"
+	DefaultBaseURL = "https://api.twelvelabs.io/v1.3"
 	DefaultTimeout = 60 * time.Second
 )
 
@@ -107,8 +107,6 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
 	}(res.Body)
 
 	body, err := io.ReadAll(res.Body)
-
-	fmt.Println(string(body))
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
