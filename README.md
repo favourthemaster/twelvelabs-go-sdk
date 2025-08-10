@@ -91,7 +91,7 @@ embedding, err = client.Embed.Create(&wrappers.EmbedWrapperRequest{
 if err != nil {
     // handle error
 }
-fmt.Println(embedding)
+fmt.Println(embedding.GetEmbeddings())
 ```
 
 ## Examples
