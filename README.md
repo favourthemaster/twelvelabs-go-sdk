@@ -51,7 +51,7 @@ req := models.SearchRequest{
     Query:   "A woman vlogs about her summer day",
     IndexID: "your_index_id",
 }
-resp, err := client.Search.SearchByText(req.IndexID, req.QueryText, []string{"visual", "audio"}, nil)
+resp, err := client.Search.SearchByText(req.IndexID, req.QueryText, []string{"visual", "audio"})
 if err != nil {
     // handle error
 }
