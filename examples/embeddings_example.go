@@ -41,12 +41,13 @@ func main() {
 			continue
 		}
 
+		embeddings := embedding.GetEmbeddings()
 		fmt.Printf("   ✅ Text %d: \"%s...\" -> %d dimensions\n",
-			i+1, query[:min(30, len(query))], len(embedding.Embeddings))
+			i+1, query[:min(30, len(query))], len(embeddings))
 
-		if len(embedding.Embeddings) > 0 {
+		if len(embeddings) > 0 {
 			fmt.Printf("      First few values: [%.4f, %.4f, %.4f...]\n",
-				embedding.Embeddings[0], embedding.Embeddings[1], embedding.Embeddings[2])
+				embeddings[0], embeddings[1], embeddings[2])
 		}
 	}
 
@@ -66,8 +67,9 @@ func main() {
 		}
 
 		fmt.Printf("   ✅ Image %d: %s -> embedding created\n", i+1, imageURL)
-		if embedding.ImageEmbedding != nil && len(embedding.ImageEmbedding.Embeddings) > 0 {
-			fmt.Printf("      Dimensions: %d\n", len(embedding.ImageEmbedding.Embeddings))
+		embeddings := embedding.GetEmbeddings()
+		if len(embeddings) > 0 {
+			fmt.Printf("      Dimensions: %d\n", len(embeddings))
 		}
 	}
 
@@ -112,8 +114,20 @@ func main() {
 		}
 
 		fmt.Printf("   ✅ Video %d: %s -> embedding created\n", i+1, videoURL)
-		if embedding.VideoEmbedding != nil && len(embedding.VideoEmbedding.Embeddings) > 0 {
-			fmt.Printf("      Video segments: %d\n", len(embedding.VideoEmbedding.Embeddings))
+		segments := embedding.GetAllVideoSegments()
+		if len(segments) > 0 {
+			fmt.Printf("      Video segments: %d\n", len(segments))
+			for j, segment := range segments {
+				if j >= 3 {
+					fmt.Printf("      ... and %d more segments\n", len(segments)-3)
+					break
+				}
+				startTime := "N/A"
+				if segment.StartOffsetSec != nil {
+					startTime = fmt.Sprintf("%.2fs", *segment.StartOffsetSec)
+				}
+				fmt.Printf("      Segment %d: %d dimensions, start: %s\n", j+1, len(segment.Float), startTime)
+			}
 		}
 	}
 
@@ -188,10 +202,11 @@ func main() {
 			continue
 		}
 
-		if len(embedding.Embeddings) > 0 {
-			embeddings[label] = embedding.Embeddings
+		embeddingVector := embedding.GetEmbeddings()
+		if len(embeddingVector) > 0 {
+			embeddings[label] = embeddingVector
 			fmt.Printf("   ✅ %s: \"%s\" -> %d dimensions\n",
-				label, text, len(embedding.Embeddings))
+				label, text, len(embeddingVector))
 		}
 	}
 

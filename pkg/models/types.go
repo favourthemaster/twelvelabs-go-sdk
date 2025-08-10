@@ -140,35 +140,88 @@ type PageInfo struct {
 }
 
 type EmbedResponse struct {
+	ModelName      string                `json:"model_name,omitempty"`
 	VideoEmbedding *VideoEmbeddingResult `json:"video_embedding,omitempty"`
 	TextEmbedding  *TextEmbeddingResult  `json:"text_embedding,omitempty"`
 	AudioEmbedding *AudioEmbeddingResult `json:"audio_embedding,omitempty"`
 	ImageEmbedding *ImageEmbeddingResult `json:"image_embedding,omitempty"`
-	Embeddings     []float64             `json:"embeddings,omitempty"`
 }
 
 type VideoEmbeddingResult struct {
-	VideoID    string          `json:"video_id"`
-	Embeddings []EmbeddingData `json:"embeddings"`
+	Segments []EmbeddingSegment     `json:"segments"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type TextEmbeddingResult struct {
-	Text       string    `json:"text"`
-	Embeddings []float64 `json:"embeddings"`
+	Segments []EmbeddingSegment     `json:"segments"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type AudioEmbeddingResult struct {
-	AudioID    string          `json:"audio_id"`
-	Embeddings []EmbeddingData `json:"embeddings"`
+	Segments []EmbeddingSegment     `json:"segments"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type ImageEmbeddingResult struct {
-	ImageID    string    `json:"image_id"`
-	Embeddings []float64 `json:"embeddings"`
+	Segments []EmbeddingSegment     `json:"segments"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
+type EmbeddingSegment struct {
+	Float          []float64 `json:"float"`
+	StartOffsetSec *float64  `json:"start_offset_sec,omitempty"`
+	EndOffsetSec   *float64  `json:"end_offset_sec,omitempty"`
+}
+
+// Legacy EmbeddingData struct for backward compatibility
 type EmbeddingData struct {
 	Embedding []float64 `json:"embedding"`
 	StartTime float64   `json:"start_time"`
 	EndTime   float64   `json:"end_time"`
+}
+
+// Helper methods for EmbedResponse to provide consistent access to embeddings
+func (e *EmbedResponse) GetEmbeddings() []float64 {
+	// Return the appropriate embeddings based on which type was created
+	if e.TextEmbedding != nil && len(e.TextEmbedding.Segments) > 0 {
+		return e.TextEmbedding.Segments[0].Float
+	}
+	if e.ImageEmbedding != nil && len(e.ImageEmbedding.Segments) > 0 {
+		return e.ImageEmbedding.Segments[0].Float
+	}
+	if e.VideoEmbedding != nil && len(e.VideoEmbedding.Segments) > 0 {
+		return e.VideoEmbedding.Segments[0].Float
+	}
+	if e.AudioEmbedding != nil && len(e.AudioEmbedding.Segments) > 0 {
+		return e.AudioEmbedding.Segments[0].Float
+	}
+	return nil
+}
+
+func (e *EmbedResponse) GetAllVideoSegments() []EmbeddingSegment {
+	if e.VideoEmbedding != nil {
+		return e.VideoEmbedding.Segments
+	}
+	return nil
+}
+
+func (e *EmbedResponse) GetAllAudioSegments() []EmbeddingSegment {
+	if e.AudioEmbedding != nil {
+		return e.AudioEmbedding.Segments
+	}
+	return nil
+}
+
+func (e *EmbedResponse) GetAllTextSegments() []EmbeddingSegment {
+	if e.TextEmbedding != nil {
+		return e.TextEmbedding.Segments
+	}
+	return nil
+}
+
+func (e *EmbedResponse) GetAllImageSegments() []EmbeddingSegment {
+	if e.ImageEmbedding != nil {
+		return e.ImageEmbedding.Segments
+	}
+	return nil
 }
