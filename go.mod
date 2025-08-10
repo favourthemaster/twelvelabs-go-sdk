@@ -1,3 +1,4 @@
-module twelvelabs-go-sdk/mod
+module github.com/favourthemaster/twelvelabs-go-sdk
 
-go 1.24.0
+go 1.24
+

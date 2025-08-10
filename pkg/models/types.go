@@ -1,0 +1,174 @@
+package models
+
+// Core data types and models for the TwelveLabs Go SDK
+
+type Task struct {
+	ID             string                 `json:"_id"`
+	Status         string                 `json:"status"`
+	VideoID        string                 `json:"video_id"`
+	IndexID        string                 `json:"index_id"`
+	SystemMetadata map[string]interface{} `json:"system_metadata"`
+	CreatedAt      string                 `json:"created_at"`
+	UpdatedAt      string                 `json:"updated_at"`
+}
+
+type Index struct {
+	ID        string  `json:"_id"`
+	IndexName string  `json:"index_name"`
+	Models    []Model `json:"models"`
+	CreatedAt string  `json:"created_at"`
+}
+
+type Model struct {
+	ModelName    string   `json:"model_name"`
+	ModelOptions []string `json:"model_options"`
+}
+
+type Video struct {
+	ID        string  `json:"_id"`
+	IndexID   string  `json:"index_id"`
+	FileName  string  `json:"file_name"`
+	Duration  float64 `json:"duration"`
+	CreatedAt string  `json:"created_at"`
+}
+
+type SearchResult struct {
+	VideoID       string                 `json:"video_id"`
+	Score         float64                `json:"score"`
+	Start         float64                `json:"start"`
+	End           float64                `json:"end"`
+	Confidence    string                 `json:"confidence"`
+	ThumbnailURL  string                 `json:"thumbnail_url,omitempty"`
+	Transcription string                 `json:"transcription,omitempty"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// Search pool information
+type SearchPool struct {
+	TotalCount    int    `json:"total_count"`
+	TotalDuration int    `json:"total_duration"`
+	IndexID       string `json:"index_id"`
+}
+
+// Request types
+type TasksCreateRequest struct {
+	IndexID             string            `json:"index_id"`
+	VideoFile           string            `json:"video_file,omitempty"`
+	VideoURL            string            `json:"video_url,omitempty"`
+	VideoStartOffsetSec int               `json:"video_start_offset_sec,omitempty"`
+	VideoEndOffsetSec   int               `json:"video_end_offset_sec,omitempty"`
+	VideoClipLength     int               `json:"video_clip_length,omitempty"`
+	VideoEmbeddingScope []string          `json:"video_embedding_scope,omitempty"`
+	EnableVideoStream   bool              `json:"enable_video_stream,omitempty"`
+	UserMetadata        map[string]string `json:"user_metadata,omitempty"`
+}
+
+type IndexCreateRequest struct {
+	IndexName string  `json:"index_name"`
+	Models    []Model `json:"models"`
+}
+
+type IndexUpdateRequest struct {
+	IndexName string  `json:"index_name,omitempty"`
+	Models    []Model `json:"models,omitempty"`
+}
+
+type EmbedRequest struct {
+	ModelName    string `json:"model_name"`
+	VideoID      string `json:"video_id,omitempty"`
+	Text         string `json:"text,omitempty"`
+	TextTruncate string `json:"text_truncate,omitempty"`
+	ImageURL     string `json:"image_url,omitempty"`
+	ImageFile    string `json:"image_file,omitempty"`
+	AudioURL     string `json:"audio_url,omitempty"`
+	AudioFile    string `json:"audio_file,omitempty"`
+	VideoURL     string `json:"video_url,omitempty"`
+	VideoFile    string `json:"video_file,omitempty"`
+}
+
+type VideoUpdateRequest struct {
+	FileName     string            `json:"file_name,omitempty"`
+	UserMetadata map[string]string `json:"user_metadata,omitempty"`
+}
+
+type SearchQueryRequest struct {
+	IndexID               string   `json:"index_id"`
+	QueryText             string   `json:"query_text,omitempty"`
+	QueryMediaType        string   `json:"query_media_type,omitempty"`
+	QueryMediaFile        string   `json:"query_media_file,omitempty"`
+	QueryMediaURL         string   `json:"query_media_url,omitempty"`
+	ConversationOption    string   `json:"conversation_option,omitempty"`
+	Filter                string   `json:"filter,omitempty"`
+	SearchOptions         []string `json:"search_options,omitempty"`
+	Threshold             string   `json:"threshold,omitempty"`
+	SortOption            string   `json:"sort_option,omitempty"`
+	AdjustConfidenceLevel float64  `json:"adjust_confidence_level,omitempty"`
+	IncludeClips          bool     `json:"include_clips,omitempty"`
+}
+
+type SearchRequest struct {
+	IndexID               string   `json:"index_id"`
+	QueryText             string   `json:"query_text,omitempty"`
+	QueryMediaType        string   `json:"query_media_type,omitempty"`
+	QueryMediaFile        string   `json:"query_media_file,omitempty"`
+	QueryMediaURL         string   `json:"query_media_url,omitempty"`
+	ConversationOption    string   `json:"conversation_option,omitempty"`
+	Filter                string   `json:"filter,omitempty"`
+	SearchOptions         []string `json:"search_options,omitempty"`
+	Threshold             string   `json:"threshold,omitempty"`
+	SortOption            string   `json:"sort_option,omitempty"`
+	AdjustConfidenceLevel float64  `json:"adjust_confidence_level,omitempty"`
+	IncludeClips          bool     `json:"include_clips,omitempty"`
+	PageLimit             int      `json:"page_limit,omitempty"`
+	PageToken             string   `json:"page_token,omitempty"`
+}
+
+// Response types
+type SearchResponse struct {
+	SearchID   string         `json:"search_id,omitempty"`
+	Data       []SearchResult `json:"data"`
+	SearchPool *SearchPool    `json:"search_pool,omitempty"`
+	PageInfo   *PageInfo      `json:"page_info,omitempty"`
+}
+
+type PageInfo struct {
+	LimitPerPage  int    `json:"limit_per_page"`
+	TotalResults  int    `json:"total_results"`
+	PageExpiredAt string `json:"page_expired_at"`
+	NextPageToken string `json:"next_page_token,omitempty"`
+	PrevPageToken string `json:"prev_page_token,omitempty"`
+}
+
+type EmbedResponse struct {
+	VideoEmbedding *VideoEmbeddingResult `json:"video_embedding,omitempty"`
+	TextEmbedding  *TextEmbeddingResult  `json:"text_embedding,omitempty"`
+	AudioEmbedding *AudioEmbeddingResult `json:"audio_embedding,omitempty"`
+	ImageEmbedding *ImageEmbeddingResult `json:"image_embedding,omitempty"`
+	Embeddings     []float64             `json:"embeddings,omitempty"`
+}
+
+type VideoEmbeddingResult struct {
+	VideoID    string          `json:"video_id"`
+	Embeddings []EmbeddingData `json:"embeddings"`
+}
+
+type TextEmbeddingResult struct {
+	Text       string    `json:"text"`
+	Embeddings []float64 `json:"embeddings"`
+}
+
+type AudioEmbeddingResult struct {
+	AudioID    string          `json:"audio_id"`
+	Embeddings []EmbeddingData `json:"embeddings"`
+}
+
+type ImageEmbeddingResult struct {
+	ImageID    string    `json:"image_id"`
+	Embeddings []float64 `json:"embeddings"`
+}
+
+type EmbeddingData struct {
+	Embedding []float64 `json:"embedding"`
+	StartTime float64   `json:"start_time"`
+	EndTime   float64   `json:"end_time"`
+}
