@@ -130,9 +130,9 @@ func main() {
 		return
 	}
 	fmt.Printf("✅ Text embedding created successfully\n")
-	if embedding.TextEmbedding != nil && len(embedding.TextEmbedding.Embeddings) > 0 {
+	if embedding.TextEmbedding != nil && len(embedding.GetAllTextSegments()) > 0 {
 		fmt.Printf("   First few values: [%.4f, %.4f, %.4f...]\n",
-			embedding.TextEmbedding.Embeddings[0], embedding.TextEmbedding.Embeddings[1], embedding.TextEmbedding.Embeddings[2])
+			embedding.GetEmbeddings()[0], embedding.GetEmbeddings()[1], embedding.GetEmbeddings()[2])
 	}
 
 	fmt.Println("\n🎉 Basic example completed successfully!")

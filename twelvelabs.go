@@ -3,7 +3,6 @@ package twelvelabs
 import (
 	"fmt"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/client"
-	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/services"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/wrappers"
 	"os"
 	"time"
