@@ -180,6 +180,75 @@ type EmbeddingData struct {
 	EndTime   float64   `json:"end_time"`
 }
 
+// Analyze request and response types
+
+type GenerateGistRequest struct {
+	VideoID string   `json:"video_id"`
+	Types   []string `json:"types"` // title, topic, hashtag
+}
+
+type GenerateGistResponse struct {
+	ID       string   `json:"id"`
+	Title    string   `json:"title,omitempty"`
+	Topics   []string `json:"topics,omitempty"`
+	Hashtags []string `json:"hashtags,omitempty"`
+	Usage    *struct {
+		OutputTokens int `json:"output_tokens,omitempty"`
+	}
+}
+
+type AnalyzeRequest struct {
+	VideoID     string  `json:"video_id,omitempty"`
+	Prompt      string  `json:"prompt"`
+	Temperature float64 `json:"temperature,omitempty"`
+	Stream      bool    `json:"stream,omitempty"`
+}
+
+type GenerateSummaryRequest struct {
+	VideoID     string  `json:"video_id,omitempty"`
+	Type        string  `json:"type"` //summary, chapters, highlights
+	Prompt      string  `json:"prompt"`
+	Temperature float64 `json:"temperature,omitempty"`
+}
+
+type GenerateSummaryResponse struct {
+	Type     string `json:"summarize_type"` // summary, chapters, highlights
+	ID       string `json:"id"`
+	Summary  string `json:"summary,omitempty"`
+	Chapters []struct {
+		Number  string  `json:"chapter_number"`
+		Title   string  `json:"chapter_title"`
+		Start   float64 `json:"start_sec"`
+		End     float64 `json:"end_sec"`
+		Summary string  `json:"chapter_summary"`
+	} `json:"chapters,omitempty"`
+	Highlights []struct {
+		Start   float64 `json:"start_sec"`
+		End     float64 `json:"end_sec"`
+		Title   string  `json:"highlight"`
+		Summary string  `json:"highlight_summary"`
+	} `json:"highlights,omitempty"`
+	Usage *struct {
+		OutputTokens int `json:"output_tokens,omitempty"`
+	}
+}
+
+type AnalyzeResponse struct {
+	ID   string `json:"id"`
+	Data string `json:"data"`
+}
+
+type AnalyzeStreamResponse struct {
+	EventType string `json:"event_type"`
+	Text      string `json:"text,omitempty"`
+	Metadata  *struct {
+		GenerationID string `json:"generation_id,omitempty"`
+		Usage        *struct {
+			OutputTokens int `json:"output_tokens,omitempty"`
+		} `json:"usage,omitempty"`
+	} `json:"metadata,omitempty"`
+}
+
 // Helper methods for EmbedResponse to provide consistent access to embeddings
 func (e *EmbedResponse) GetEmbeddings() []float64 {
 	// Return the appropriate embeddings based on which type was created

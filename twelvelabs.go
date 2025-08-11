@@ -11,14 +11,13 @@ import (
 
 // TwelveLabs is the main client wrapper that provides access to all TwelveLabs API services
 type TwelveLabs struct {
-	client    *client.Client
-	options   *Options
-	Tasks     *wrappers.TasksWrapper
-	Indexes   *wrappers.IndexesWrapper
-	Search    *wrappers.SearchWrapper
-	Embed     *wrappers.EmbedWrapper
-	Summarize *services.SummarizeService
-	Analyze   *services.AnalyzeService
+	client  *client.Client
+	options *Options
+	Tasks   *wrappers.TasksWrapper
+	Indexes *wrappers.IndexesWrapper
+	Search  *wrappers.SearchWrapper
+	Embed   *wrappers.EmbedWrapper
+	Analyze *wrappers.AnalyzeWrapper
 }
 
 // Options represents configuration options for the TwelveLabs client
@@ -68,14 +67,13 @@ func NewTwelveLabs(options *Options) (*TwelveLabs, error) {
 	apiClient := client.NewClient(clientOptions)
 
 	return &TwelveLabs{
-		client:    apiClient,
-		options:   options,
-		Tasks:     wrappers.NewTasksWrapper(apiClient.Tasks),
-		Indexes:   wrappers.NewIndexesWrapper(apiClient.Indexes),
-		Search:    wrappers.NewSearchWrapper(apiClient.Search),
-		Embed:     wrappers.NewEmbedWrapper(apiClient.Embed),
-		Summarize: apiClient.Summarize,
-		Analyze:   apiClient.Analyze,
+		client:  apiClient,
+		options: options,
+		Tasks:   wrappers.NewTasksWrapper(apiClient.Tasks),
+		Indexes: wrappers.NewIndexesWrapper(apiClient.Indexes),
+		Search:  wrappers.NewSearchWrapper(apiClient.Search),
+		Embed:   wrappers.NewEmbedWrapper(apiClient.Embed),
+		Analyze: wrappers.NewAnalyzeWrapper(apiClient.Analyze),
 	}, nil
 }
 

@@ -16,11 +16,6 @@ type TasksService struct {
 	Client ClientInterface
 }
 
-type ClientInterface interface {
-	NewRequest(method, path string, body interface{}) (*http.Request, error)
-	Do(req *http.Request, v interface{}) (*http.Response, error)
-}
-
 func (s *TasksService) List(filters map[string]string) ([]models.Task, error) {
 	queryParams := ""
 	for key, value := range filters {

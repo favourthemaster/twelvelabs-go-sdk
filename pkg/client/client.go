@@ -19,16 +19,14 @@ const (
 )
 
 type Client struct {
-	HTTPClient   *http.Client
-	BaseURL      string
-	APIKey       string
-	Tasks        *services.TasksService
-	Indexes      *services.IndexesService
-	ManageVideos *services.ManageVideosService
-	Embed        *services.EmbedService
-	Search       *services.SearchService
-	Summarize    *services.SummarizeService
-	Analyze      *services.AnalyzeService
+	HTTPClient *http.Client
+	BaseURL    string
+	APIKey     string
+	Tasks      *services.TasksService
+	Indexes    *services.IndexesService
+	Embed      *services.EmbedService
+	Search     *services.SearchService
+	Analyze    *services.AnalyzeService
 }
 
 type Options struct {
@@ -55,10 +53,8 @@ func NewClient(options *Options) *Client {
 	// Initialize services with client reference
 	client.Tasks = &services.TasksService{Client: client}
 	client.Indexes = &services.IndexesService{Client: client}
-	client.ManageVideos = &services.ManageVideosService{Client: client}
 	client.Embed = &services.EmbedService{Client: client}
 	client.Search = &services.SearchService{Client: client}
-	client.Summarize = &services.SummarizeService{Client: client}
 	client.Analyze = &services.AnalyzeService{Client: client}
 
 	return client
@@ -120,6 +116,26 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
 		if err := json.Unmarshal(body, v); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal JSON response: %w", err)
 		}
+	}
+
+	return res, nil
+}
+
+// DoRaw performs a raw HTTP request and returns the response without closing the body
+// This is useful for streaming responses where the caller needs to handle the response body
+func (c *Client) DoRaw(req *http.Request) (*http.Response, error) {
+	res, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode >= 400 {
+		defer res.Body.Close()
+		body, err := io.ReadAll(res.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read error response body: %w", err)
+		}
+		return nil, handleAPIError(res.StatusCode, body)
 	}
 
 	return res, nil

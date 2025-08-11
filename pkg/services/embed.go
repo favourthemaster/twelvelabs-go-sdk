@@ -5,10 +5,17 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net/http"
 	"os"
 
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/models"
 )
+
+type ClientInterface interface {
+	NewRequest(method, path string, body interface{}) (*http.Request, error)
+	Do(req *http.Request, v interface{}) (*http.Response, error)
+	DoRaw(req *http.Request) (*http.Response, error)
+}
 
 type EmbedService struct {
 	Client ClientInterface
@@ -107,78 +114,4 @@ func (s *EmbedService) Create(reqBody *models.EmbedRequest) (*models.EmbedRespon
 	}
 
 	return &embedResponse, nil
-}
-
-type SummarizeService struct {
-	Client ClientInterface
-}
-
-func (s *SummarizeService) Summarize(reqBody interface{}) (interface{}, error) {
-	req, err := s.Client.NewRequest("POST", "/summarize", reqBody)
-	if err != nil {
-		return nil, err
-	}
-
-	var response interface{}
-	_, err = s.Client.Do(req, &response)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
-}
-
-type AnalyzeService struct {
-	Client ClientInterface
-}
-
-func (s *AnalyzeService) Analyze(reqBody interface{}) (interface{}, error) {
-	req, err := s.Client.NewRequest("POST", "/analyze", reqBody)
-	if err != nil {
-		return nil, err
-	}
-
-	var response interface{}
-	_, err = s.Client.Do(req, &response)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
-}
-
-func (s *AnalyzeService) AnalyzeStream(reqBody interface{}) (interface{}, error) {
-	req, err := s.Client.NewRequest("POST", "/analyze/stream", reqBody)
-	if err != nil {
-		return nil, err
-	}
-
-	var response interface{}
-	_, err = s.Client.Do(req, &response)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
-}
-
-type ManageVideosService struct {
-	Client ClientInterface
-}
-
-// Placeholder for manage videos functionality
-func (s *ManageVideosService) Update(videoID string, request interface{}) (interface{}, error) {
-	path := fmt.Sprintf("/videos/%s", videoID)
-	req, err := s.Client.NewRequest("PUT", path, request)
-	if err != nil {
-		return nil, err
-	}
-
-	var response interface{}
-	_, err = s.Client.Do(req, &response)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
 }
