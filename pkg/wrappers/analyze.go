@@ -17,44 +17,16 @@ func NewAnalyzeWrapper(service *services.AnalyzeService) *AnalyzeWrapper {
 	return &AnalyzeWrapper{service: service}
 }
 
-// AnalyzeWrapperRequest represents an analyze request with enhanced functionality
-type AnalyzeWrapperRequest struct {
-	VideoID string `json:"video_id,omitempty"`
-	Prompt  string `json:"prompt"`
-	// Optional parameters
-	Temperature float64 `json:"temperature,omitempty"`
-	Stream      bool    `json:"stream,omitempty"`
-}
-
 // Analyze performs video analysis with the given request
 //
 // Parameters:
-//   - request: Analyze request containing the video source, model, and prompt
+//   - request: Analyze request containing the videoid, temperature, stream and prompt
 //
 // Returns: AnalyzeResponse containing the analysis results
-//
-// Example for video ID analysis:
-//
-//	response, err := client.Analyze.Analyze(&AnalyzeWrapperRequest{
+
+//	response, err := client.Analyze.Analyze(&models.AnalyzeRequest{
 //	    VideoID:   "video_id_here",
-//	    ModelName: "pegasus-1",
-//	    Prompt:    "Describe what happens in this video",
-//	})
-//
-// Example for video URL analysis:
-//
-//	response, err := client.Analyze.Analyze(&AnalyzeWrapperRequest{
-//	    VideoURL:  "https://example.com/video.mp4",
-//	    ModelName: "pegasus-1",
 //	    Prompt:    "What objects can you see in this video?",
-//	})
-//
-// Example for local file analysis:
-//
-//	response, err := client.Analyze.Analyze(&AnalyzeWrapperRequest{
-//	    VideoFile: "./path/to/video.mp4",
-//	    ModelName: "pegasus-1",
-//	    Prompt:    "Summarize the main events in this video",
 //	})
 func (aw *AnalyzeWrapper) Analyze(request *models.AnalyzeRequest) (*models.AnalyzeResponse, error) {
 	result, err := aw.service.Analyze(request)
