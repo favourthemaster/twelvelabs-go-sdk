@@ -2,22 +2,18 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/favourthemaster/twelvelabs-go-sdk"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/models"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/wrappers"
-	"log"
-	"os"
-	"time"
 )
 
 func main() {
-	// Initialize the TwelveLabs client
-	//err := godotenv.Load()
-	//if err != nil {
-	//	log.Fatal("Error loading .env file")
-	//} // Load environment variables from .env file if needed
+	// Initialize client using placeholder API key
 	client, err := twelvelabs.NewTwelveLabs(&twelvelabs.Options{
-		APIKey: os.Getenv("TWELVE_LABS_API_KEY"), // Or provide directly: "your-api-key"
+		APIKey: "your-api-key-here", // Replace with your actual API key
 	})
 	if err != nil {
 		log.Fatalf("Failed to initialize client: %v", err)
@@ -29,10 +25,14 @@ func main() {
 	// 1. Create an Index
 	fmt.Println("\n📁 Creating an index...")
 	index, err := client.Indexes.Create(&models.IndexCreateRequest{
-		IndexName: "my-video-index5",
+		IndexName: "example_index", // Replace with your desired index name
 		Models: []models.Model{
 			{
 				ModelName:    "marengo2.7",
+				ModelOptions: []string{"visual", "audio"},
+			},
+			{
+				ModelName:    "pegasus1.2",
 				ModelOptions: []string{"visual", "audio"},
 			},
 		},
@@ -59,13 +59,13 @@ func main() {
 	fmt.Println("\n🎬 Creating a video indexing task...")
 	task, err := client.Tasks.Create(&models.TasksCreateRequest{
 		IndexID:  index.ID,
-		VideoURL: "https://www.example.com/sample-video.mp4",
+		VideoURL: "https://example.com/your-video-url.mp4", // Replace with your actual video URL
 	})
 	if err != nil {
 		log.Printf("Error creating task: %v", err)
 		return
 	}
-	fmt.Printf("✅ Task created: %s (Status: %s)\n", task.ID, task.Status)
+	fmt.Printf("✅ Task created: %s\n", task.ID)
 
 	// 4. Wait for the task to complete before proceeding
 	fmt.Printf("\n⏳ Waiting for task %s to complete...\n", task.ID)
@@ -105,7 +105,7 @@ func main() {
 	fmt.Println("\n🔍 Performing text search...")
 	searchResults, err := client.Search.SearchByText(
 		index.ID,
-		"Rotation",
+		"your search query here", // Replace with your actual search query
 		[]string{"visual"},
 	)
 	if err != nil {
@@ -116,14 +116,13 @@ func main() {
 		fmt.Printf("   - Video ID: %s, Score: %.4f, Start Time: %.2f, End Time: %.2f\n",
 			result.VideoID, result.Score, result.Start, result.End)
 	}
-
 	fmt.Printf("✅ Search completed, found %d results\n", len(searchResults.Data))
 
 	// 7. Create text embedding
 	fmt.Println("\n🧠 Creating text embedding...")
 	embedding, err := client.Embed.CreateTextEmbedding(
 		"Marengo-retrieval-2.7",
-		"Rotating Objects",
+		"your text here", // Replace with your actual text
 	)
 	if err != nil {
 		log.Printf("Error creating embedding: %v", err)

@@ -3,18 +3,16 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/favourthemaster/twelvelabs-go-sdk"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/models"
-	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/wrappers"
 )
 
 func main() {
-	// Initialize client
+	// Initialize client using placeholder API key
 	client, err := twelvelabs.NewTwelveLabs(&twelvelabs.Options{
-		APIKey: os.Getenv("TWELVE_LABS_API_KEY"),
+		APIKey: "your-api-key-here", // Replace with your actual API key
 	})
 	if err != nil {
 		log.Fatalf("Failed to initialize client: %v", err)
@@ -23,18 +21,15 @@ func main() {
 	fmt.Println("🤖 TwelveLabs Go SDK - Analyze Examples")
 	fmt.Println("======================================")
 
-	// Example model and video (replace with your actual values)
-	modelName := "pegasus-1"
-	videoID := "your_video_id_here"
-	videoURL := "https://example.com/sample_video.mp4"
+	videoID := "your-video-id-here" // Replace with your actual video ID
 
 	// 1. Basic video analysis with video ID
 	fmt.Println("\n📹 Analyzing video by ID...")
-	analyzeResp, err := client.Analyze.AnalyzeByVideoID(
-		videoID,
-		modelName,
-		"Describe what happens in this video in detail.",
-	)
+	analyzeResp, err := client.Analyze.Analyze(&models.AnalyzeRequest{
+		VideoID: videoID,
+		Prompt:  "your analysis prompt here",
+		Stream:  false,
+	})
 	if err != nil {
 		log.Printf("Video ID analysis failed: %v", err)
 	} else {
@@ -43,35 +38,69 @@ func main() {
 		fmt.Printf("Response: %s\n", analyzeResp.Data)
 	}
 
-	// 2. Video analysis with URL
-	fmt.Println("\n🌐 Analyzing video by URL...")
-	urlAnalyzeResp, err := client.Analyze.AnalyzeByVideoURL(
-		videoURL,
-		modelName,
-		"What objects and people can you see in this video?",
-	)
+	gistResponse, err := client.Analyze.GenerateGist(&models.GenerateGistRequest{
+		VideoID: videoID,
+		Types: []string{
+			"title",
+			"topic",
+			"hashtag",
+		},
+	})
 	if err != nil {
-		log.Printf("Video URL analysis failed: %v", err)
+		log.Printf("Gist generation failed: %v", err)
 	} else {
-		fmt.Printf("✅ URL Analysis completed!\n")
-		fmt.Printf("Analysis ID: %s\n", urlAnalyzeResp.ID)
-		fmt.Printf("Response: %s\n", urlAnalyzeResp.Data)
+		fmt.Printf("✅ Gist generation completed!\n")
+		fmt.Printf("Gist ID: %s\n", gistResponse.ID)
+		fmt.Printf("Title: %s\n", gistResponse.Title)
+		fmt.Printf("Topics: %s\n", gistResponse.Topics)
+		fmt.Printf("Hashtags: %v\n", gistResponse.Hashtags)
+	}
+
+	summary, err := client.Analyze.GenerateSummary(&models.GenerateSummaryRequest{
+		VideoID: videoID,
+		Type:    "summary",
+		Prompt:  "your summary prompt here",
+	})
+	if err != nil {
+		log.Printf("Summary generation failed: %v", err)
+	} else {
+		fmt.Printf("✅ Summary generation completed!\n")
+		fmt.Printf("Summary ID: %s\n", summary.ID)
+		fmt.Printf("Summary: %s\n", summary.Summary)
+	}
+
+	chapters, err := client.Analyze.GenerateSummary(&models.GenerateSummaryRequest{
+		VideoID: videoID,
+		Type:    "chapter",
+		Prompt:  "your chapter generation prompt here",
+	})
+	if err != nil {
+		log.Printf("Summary generation failed: %v", err)
+	} else {
+		fmt.Printf("✅ Summary generation completed!\n")
+		fmt.Printf("Chapter ID: %s\n", chapters.ID)
+		fmt.Printf("Chapters: %s\n", chapters.Chapters)
+	}
+
+	highlights, err := client.Analyze.GenerateSummary(&models.GenerateSummaryRequest{
+		VideoID: videoID,
+		Type:    "highlight",
+		Prompt:  "your highlight identification prompt here",
+	})
+	if err != nil {
+		log.Printf("Summary generation failed: %v", err)
+	} else {
+		fmt.Printf("✅ Summary generation completed!\n")
+		fmt.Printf("Highlight ID: %s\n", highlights.ID)
+		fmt.Printf("Hightlights: %s\n", highlights.Highlights)
 	}
 
 	// 3. Advanced analysis with custom parameters
-	fmt.Println("\n⚙️ Advanced analysis with custom parameters...")
-	advancedReq := &wrappers.AnalyzeWrapperRequest{
+	advancedResp, err := client.Analyze.Analyze(&models.AnalyzeRequest{
 		VideoID:     videoID,
-		ModelName:   modelName,
-		Prompt:      "Provide a detailed summary of the key events in this video.",
+		Prompt:      "your detailed analysis prompt here",
 		Temperature: 0.7,
-		MaxTokens:   500,
-		ModelParams: map[string]interface{}{
-			"detail_level": "high",
-		},
-	}
-
-	advancedResp, err := client.Analyze.Analyze(advancedReq)
+	})
 	if err != nil {
 		log.Printf("Advanced analysis failed: %v", err)
 	} else {
@@ -80,34 +109,17 @@ func main() {
 		fmt.Printf("Response: %s\n", advancedResp.Data)
 	}
 
-	// 4. Local file analysis
-	fmt.Println("\n📁 Analyzing local video file...")
-	localFileResp, err := client.Analyze.AnalyzeByVideoFile(
-		"./assets/sample_video.mp4",
-		modelName,
-		"Analyze the content of this video and identify the main themes.",
-	)
-	if err != nil {
-		log.Printf("Local file analysis failed: %v", err)
-	} else {
-		fmt.Printf("✅ Local file analysis completed!\n")
-		fmt.Printf("Analysis ID: %s\n", localFileResp.ID)
-		fmt.Printf("Response: %s\n", localFileResp.Data)
-	}
-
 	// 5. Streaming analysis
 	fmt.Println("\n🔄 Streaming analysis...")
-	streamReq := &wrappers.AnalyzeWrapperRequest{
-		VideoID:   videoID,
-		ModelName: modelName,
-		Prompt:    "Provide a detailed analysis of this video, describing each scene.",
-	}
 
 	fmt.Println("Streaming response events:")
 	var generationID string
 	var accumulatedText strings.Builder
 
-	err = client.Analyze.AnalyzeStream(streamReq, func(event *models.AnalyzeStreamResponse) error {
+	err = client.Analyze.AnalyzeStream(&models.AnalyzeRequest{
+		VideoID: videoID,
+		Prompt:  "your streaming analysis prompt here",
+	}, func(event *models.AnalyzeStreamResponse) error {
 		switch event.EventType {
 		case "stream_start":
 			if event.Metadata != nil {
@@ -141,11 +153,11 @@ func main() {
 	fmt.Println("\n📦 Batch analysis with different prompts...")
 
 	prompts := []string{
-		"What are the main colors visible in this video?",
-		"Identify any text or writing that appears in the video.",
-		"Describe the setting and location of this video.",
-		"What emotions or moods does this video convey?",
-		"List any products or brands visible in the video.",
+		"your first analysis prompt here",
+		"your second analysis prompt here",
+		"your third analysis prompt here",
+		"your fourth analysis prompt here",
+		"your fifth analysis prompt here",
 	}
 
 	fmt.Printf("Processing %d different analysis prompts...\n", len(prompts))
@@ -153,7 +165,11 @@ func main() {
 	for i, prompt := range prompts {
 		fmt.Printf("\n🔍 Analysis %d: %s\n", i+1, prompt)
 
-		batchResp, err := client.Analyze.AnalyzeByVideoID(videoID, modelName, prompt)
+		batchResp, err := client.Analyze.Analyze(&models.AnalyzeRequest{
+			VideoID: videoID,
+			Prompt:  prompt,
+			Stream:  false,
+		})
 		if err != nil {
 			log.Printf("   ❌ Failed: %v", err)
 			continue
@@ -171,69 +187,29 @@ func main() {
 	fmt.Println("\n⚠️ Testing error handling...")
 
 	// Test with invalid video ID
-	_, err = client.Analyze.AnalyzeByVideoID("invalid_video_id", modelName, "Test prompt")
+	_, err = client.Analyze.Analyze(&models.AnalyzeRequest{
+		VideoID: "invalid_video_id",
+		Prompt:  "your test prompt here",
+	})
 	if err != nil {
 		fmt.Printf("   ✅ Correctly handled invalid video ID error: %s\n",
 			strings.Split(err.Error(), "\n")[0])
 	}
 
-	// Test with invalid model
-	_, err = client.Analyze.AnalyzeByVideoID(videoID, "invalid_model", "Test prompt")
-	if err != nil {
-		fmt.Printf("   ✅ Correctly handled invalid model error: %s\n",
-			strings.Split(err.Error(), "\n")[0])
-	}
-
 	// Test with empty prompt
-	_, err = client.Analyze.AnalyzeByVideoID(videoID, modelName, "")
-	if err != nil {
-		fmt.Printf("   ✅ Correctly handled empty prompt error: %s\n", err.Error())
-	}
-
-	// 8. Analysis with different video sources comparison
-	fmt.Println("\n🔄 Comparing different video source methods...")
-
-	testPrompt := "Describe the first 30 seconds of this video."
-
-	// Method 1: Video ID
-	fmt.Println("   Method 1: Video ID")
-	idResp, err := client.Analyze.AnalyzeByVideoID(videoID, modelName, testPrompt)
-	if err != nil {
-		fmt.Printf("   ❌ Video ID method failed: %v\n", err)
-	} else {
-		fmt.Printf("   ✅ Success (ID: %s)\n", idResp.ID)
-	}
-
-	// Method 2: Video URL
-	fmt.Println("   Method 2: Video URL")
-	urlResp, err := client.Analyze.AnalyzeByVideoURL(videoURL, modelName, testPrompt)
-	if err != nil {
-		fmt.Printf("   ❌ Video URL method failed: %v\n", err)
-	} else {
-		fmt.Printf("   ✅ Success (ID: %s)\n", urlResp.ID)
-	}
-
-	// Method 3: Generic wrapper
-	fmt.Println("   Method 3: Generic wrapper")
-	genericResp, err := client.Analyze.Analyze(&wrappers.AnalyzeWrapperRequest{
-		VideoID:   videoID,
-		ModelName: modelName,
-		Prompt:    testPrompt,
+	_, err = client.Analyze.Analyze(&models.AnalyzeRequest{
+		VideoID: videoID,
+		Prompt:  "",
 	})
 	if err != nil {
-		fmt.Printf("   ❌ Generic wrapper method failed: %v\n", err)
-	} else {
-		fmt.Printf("   ✅ Success (ID: %s)\n", genericResp.ID)
+		fmt.Printf("   ✅ Correctly handled empty prompt error: %s\n", err.Error())
 	}
 
 	fmt.Println("\n🎉 Analyze examples completed!")
 	fmt.Println("\nAnalysis methods demonstrated:")
 	fmt.Println("- ✅ Video ID analysis")
-	fmt.Println("- ✅ Video URL analysis")
-	fmt.Println("- ✅ Local file analysis")
 	fmt.Println("- ✅ Streaming analysis")
 	fmt.Println("- ✅ Advanced parameters")
 	fmt.Println("- ✅ Batch processing")
 	fmt.Println("- ✅ Error handling")
-	fmt.Println("- ✅ Multiple input methods")
 }

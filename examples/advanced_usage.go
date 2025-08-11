@@ -11,28 +11,23 @@ import (
 )
 
 func main() {
-	// Initialize the TwelveLabs client
+	// Initialize client using placeholder API key
 	client, err := twelvelabs.NewTwelveLabs(&twelvelabs.Options{
-		BaseURL: "https://api.twelvelabs.io/v1.3", // Optional, defaults to "https://api.twelvelabs.io"
-		APIKey:  "tlk_01TR6NQ15T8GSK2P5MJBM0E63GM5",
-		//APIKey: os.Getenv("TWELVE_LABS_API_KEY"),
+		APIKey: "your-api-key-here", // Replace with your actual API key
 	})
 	if err != nil {
 		log.Fatalf("Failed to initialize client: %v", err)
 	}
 
-	fmt.Println("🚀 TwelveLabs Go SDK - Advanced Usage Example")
-	fmt.Println("============================================")
+	fmt.Println("🔧 TwelveLabs Go SDK - Advanced Usage Examples")
+	fmt.Println("===============================================")
 
-	// Replace with your actual index ID
-	indexID := "6897e2123e195789d467560b"
+	indexID := "your-index-id-here" // Replace with your actual index ID
 
 	// 1. Bulk Task Creation
 	fmt.Println("\n📦 Creating multiple tasks in bulk...")
 	videoURLs := []string{
-		"https://res.cloudinary.com/dkasavogz/video/upload/v1754476322/d80fc467-b2ef-4e92-a928-ad8be42aef10/veadsunro41crxu4qsjy.mp4",
-		//"https://res.cloudinary.com/dkasavogz/video/upload/v1754476322/d80fc467-b2ef-4e92-a928-ad8be42aef10/veadsunro41crxu4qsjy.mp4",
-		//"https://res.cloudinary.com/dkasavogz/video/upload/v1754476322/d80fc467-b2ef-4e92-a928-ad8be42aef10/veadsunro41crxu4qsjy.mp4",
+		"https://example.com/your-video-url.mp4",
 	}
 
 	tasks, err := client.Tasks.CreateBulk(&wrappers.CreateBulkRequest{
@@ -69,7 +64,7 @@ func main() {
 
 	// Text search
 	fmt.Println("   🔤 Text search:")
-	textResults, err := client.Search.SearchByText(indexID, "Unreal Engine", []string{"visual"})
+	textResults, err := client.Search.SearchByText(indexID, "your search query here", []string{"visual"})
 	if err != nil {
 		log.Printf("Error in text search: %v", err)
 	} else {
@@ -78,7 +73,7 @@ func main() {
 
 	// Image search
 	fmt.Println("   🖼️  Image search:")
-	imageResults, err := client.Search.SearchByImage(indexID, "https://download.logo.wine/logo/Unreal_Engine/Unreal_Engine-Logo.wine.png", []string{"visual"})
+	imageResults, err := client.Search.SearchByImage(indexID, "https://example.com/your-image-url.jpg", []string{"visual"})
 	if err != nil {
 		log.Printf("Error in image search: %v", err)
 	} else {
@@ -89,7 +84,7 @@ func main() {
 	fmt.Println("   ⚙️  Advanced search with custom parameters:")
 	advancedResults, err := client.Search.Query(&models.SearchQueryRequest{
 		IndexID:       indexID,
-		QueryText:     "Torus",
+		QueryText:     "your advanced query here",
 		SearchOptions: []string{"visual"},
 	})
 	if err != nil {
@@ -132,15 +127,15 @@ func main() {
 	fmt.Println("\n🧠 Advanced Embedding Examples...")
 
 	// Text embedding
-	textEmbed, err := client.Embed.CreateTextEmbedding("Marengo-retrieval-2.7", "A serene mountain landscape")
+	textEmbed, err := client.Embed.CreateTextEmbedding("Marengo-retrieval-2.7", "your text content here")
 	if err != nil {
 		log.Printf("Error creating text embedding: %v", err)
 	} else {
-		fmt.Printf("✅ Text embedding created (dimension: %d)\n", len(textEmbed.Embeddings))
+		fmt.Printf("✅ Text embedding created (dimension: %d)\n", len(textEmbed.GetEmbeddings()))
 	}
 
 	// Image embedding
-	_, err = client.Embed.CreateImageEmbedding("Marengo-retrieval-2.7", "https://download.logo.wine/logo/Unreal_Engine/Unreal_Engine-Logo.wine.png")
+	_, err = client.Embed.CreateImageEmbedding("Marengo-retrieval-2.7", "https://example.com/your-image-url.jpg")
 	if err != nil {
 		log.Printf("Error creating image embedding: %v", err)
 	} else {
@@ -150,7 +145,7 @@ func main() {
 	// Generic embedding with custom request
 	_, err = client.Embed.Create(&wrappers.EmbedWrapperRequest{
 		ModelName: "Marengo-retrieval-2.7",
-		Text:      "Custom embedding request with specific parameters",
+		Text:      "your custom text content here",
 	})
 	if err != nil {
 		log.Printf("Error creating custom embedding: %v", err)

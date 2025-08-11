@@ -25,22 +25,27 @@ type Model struct {
 }
 
 type Video struct {
-	ID        string  `json:"_id"`
-	IndexID   string  `json:"index_id"`
-	FileName  string  `json:"file_name"`
-	Duration  float64 `json:"duration"`
-	CreatedAt string  `json:"created_at"`
+	ID string `json:"_id"`
+	//IndexID  string `json:"index_id"`
+	Metadata struct {
+		FileName string  `json:"filename"`
+		Duration float64 `json:"duration"`
+		Height   int     `json:"height"`
+		Width    int     `json:"width"`
+	} `json:"system_metadata"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 type SearchResult struct {
-	VideoID       string                 `json:"video_id"`
-	Score         float64                `json:"score"`
-	Start         float64                `json:"start"`
-	End           float64                `json:"end"`
-	Confidence    string                 `json:"confidence"`
-	ThumbnailURL  string                 `json:"thumbnail_url,omitempty"`
-	Transcription string                 `json:"transcription,omitempty"`
-	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	VideoID       string  `json:"video_id"`
+	Score         float64 `json:"score"`
+	Start         float64 `json:"start"`
+	End           float64 `json:"end"`
+	Confidence    string  `json:"confidence"`
+	ThumbnailURL  string  `json:"thumbnail_url,omitempty"`
+	Transcription string  `json:"transcription,omitempty"`
+	//Metadata      map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // Search pool information
@@ -125,7 +130,6 @@ type SearchRequest struct {
 
 // Response types
 type SearchResponse struct {
-	SearchID   string         `json:"search_id,omitempty"`
 	Data       []SearchResult `json:"data"`
 	SearchPool *SearchPool    `json:"search_pool,omitempty"`
 	PageInfo   *PageInfo      `json:"page_info,omitempty"`
@@ -134,7 +138,7 @@ type SearchResponse struct {
 type PageInfo struct {
 	LimitPerPage  int    `json:"limit_per_page"`
 	TotalResults  int    `json:"total_results"`
-	PageExpiredAt string `json:"page_expired_at"`
+	PageExpiresAt string `json:"page_expires_at"`
 	NextPageToken string `json:"next_page_token,omitempty"`
 	PrevPageToken string `json:"prev_page_token,omitempty"`
 }
@@ -201,7 +205,7 @@ type AnalyzeRequest struct {
 	VideoID     string  `json:"video_id,omitempty"`
 	Prompt      string  `json:"prompt"`
 	Temperature float64 `json:"temperature,omitempty"`
-	Stream      bool    `json:"stream,omitempty"`
+	Stream      bool    `json:"stream"`
 }
 
 type GenerateSummaryRequest struct {
@@ -216,7 +220,7 @@ type GenerateSummaryResponse struct {
 	ID       string `json:"id"`
 	Summary  string `json:"summary,omitempty"`
 	Chapters []struct {
-		Number  string  `json:"chapter_number"`
+		Number  int     `json:"chapter_number"`
 		Title   string  `json:"chapter_title"`
 		Start   float64 `json:"start_sec"`
 		End     float64 `json:"end_sec"`

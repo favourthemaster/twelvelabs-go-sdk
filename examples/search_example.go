@@ -3,16 +3,15 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/favourthemaster/twelvelabs-go-sdk"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/models"
 )
 
 func main() {
-	// Initialize client
+	// Initialize client using placeholder API key
 	client, err := twelvelabs.NewTwelveLabs(&twelvelabs.Options{
-		APIKey: os.Getenv("TWELVE_LABS_API_KEY"),
+		APIKey: "your-api-key-here", // Replace with your actual API key
 	})
 	if err != nil {
 		log.Fatalf("Failed to initialize client: %v", err)
@@ -25,23 +24,23 @@ func main() {
 
 	// 1. Basic text search
 	fmt.Println("\n📝 Basic text search...")
-	textResults, err := client.Search.SearchByText(
+	textResult, err := client.Search.SearchByText(
 		indexID,
-		"person walking in the park",
-		[]string{"visual", "conversation"},
+		"your search query here",
+		[]string{"visual", "audio"},
 	)
 	if err != nil {
 		log.Printf("Error in text search: %v", err)
 	} else {
-		fmt.Printf("✅ Text search found %d results\n", len(textResults.Data))
-		displaySearchResults(textResults.Data, 3)
+		fmt.Printf("✅ Text search found %d results\n", len(textResult.Data))
+		displaySearchResults(textResult.Data, 3)
 	}
 
 	// 2. Image-based search
 	fmt.Println("\n🖼️ Image-based search...")
 	imageResults, err := client.Search.SearchByImage(
 		indexID,
-		"https://example.com/query-image.jpg",
+		"https://example.com/your-image-url.jpg",
 		[]string{"visual"},
 	)
 	if err != nil {
@@ -51,26 +50,12 @@ func main() {
 		displaySearchResults(imageResults.Data, 3)
 	}
 
-	// 3. Video-based search
-	fmt.Println("\n🎬 Video-based search...")
-	videoResults, err := client.Search.SearchByVideo(
-		indexID,
-		"https://example.com/query-video.mp4",
-		[]string{"visual"},
-	)
-	if err != nil {
-		log.Printf("Error in video search: %v", err)
-	} else {
-		fmt.Printf("✅ Video search found %d results\n", len(videoResults.Data))
-		displaySearchResults(videoResults.Data, 3)
-	}
-
 	// 4. Advanced search with custom parameters
 	fmt.Println("\n⚙️ Advanced search with custom parameters...")
 	advancedResults, err := client.Search.Query(&models.SearchQueryRequest{
 		IndexID:       indexID,
-		QueryText:     "sunset over mountains",
-		SearchOptions: []string{"visual", "conversation"},
+		QueryText:     "your advanced search query",
+		SearchOptions: []string{"visual", "audio"},
 	})
 	if err != nil {
 		log.Printf("Error in advanced search: %v", err)
@@ -79,42 +64,26 @@ func main() {
 		displaySearchResults(advancedResults.Data, 5)
 	}
 
-	// 5. Search with local media file
-	fmt.Println("\n📁 Search with local image file...")
-	localFileResults, err := client.Search.Query(&models.SearchQueryRequest{
-		IndexID:        indexID,
-		QueryMediaType: "image",
-		QueryMediaFile: "./assets/search_sample.png",
-		SearchOptions:  []string{"visual"},
-	})
-	if err != nil {
-		log.Printf("Error in local file search: %v", err)
-	} else {
-		fmt.Printf("✅ Local file search found %d results\n", len(localFileResults.Data))
-		displaySearchResults(localFileResults.Data, 3)
-	}
-
-	// 6. Multi-modal search (text + image)
-	fmt.Println("\n🔗 Multi-modal search (combining text and image)...")
-	multiModalResults, err := client.Search.Query(&models.SearchQueryRequest{
-		IndexID:        indexID,
-		QueryText:      "beautiful landscape",
-		QueryMediaType: "image",
-		QueryMediaURL:  "https://example.com/landscape.jpg",
-		SearchOptions:  []string{"visual", "conversation"},
-	})
-	if err != nil {
-		log.Printf("Error in multi-modal search: %v", err)
-	} else {
-		fmt.Printf("✅ Multi-modal search found %d results\n", len(multiModalResults.Data))
-		displaySearchResults(multiModalResults.Data, 3)
-	}
+	//// 5. Search with local media file
+	//fmt.Println("\n📁 Search with local image file...")
+	//localFileResults, err := client.Search.Query(&models.SearchQueryRequest{
+	//	IndexID:        indexID,
+	//	QueryMediaType: "image",
+	//	QueryMediaFile: "./assets/search_sample.png",
+	//	SearchOptions:  []string{"visual"},
+	//})
+	//if err != nil {
+	//	log.Printf("Error in local file search: %v", err)
+	//} else {
+	//	fmt.Printf("✅ Local file search found %d results\n", len(localFileResults.Data))
+	//	displaySearchResults(localFileResults.Data, 3)
+	//}
 
 	// 7. Search with pagination and filtering
 	fmt.Println("\n📄 Search with pagination...")
 	paginatedResults, err := client.Search.Query(&models.SearchQueryRequest{
 		IndexID:       indexID,
-		QueryText:     "outdoor activities",
+		QueryText:     "your paginated search query",
 		SearchOptions: []string{"visual"},
 	})
 	if err != nil {
@@ -125,9 +94,7 @@ func main() {
 		if paginatedResults.PageInfo.NextPageToken != "" {
 			fmt.Println("   📄 Getting next page...")
 			nextPageResults, err := client.Search.Retrieve(
-				paginatedResults.SearchID,
 				paginatedResults.PageInfo.NextPageToken,
-				false,
 			)
 			if err != nil {
 				log.Printf("Error getting next page: %v", err)
@@ -139,14 +106,14 @@ func main() {
 
 	// 8. Search result analysis
 	fmt.Println("\n📊 Search result analysis...")
-	if len(textResults.Data) > 0 {
+	if len(textResult.Data) > 0 {
 		fmt.Println("   Analyzing confidence scores...")
 
 		highConfidence := 0
 		mediumConfidence := 0
 		lowConfidence := 0
 
-		for _, result := range textResults.Data {
+		for _, result := range textResult.Data {
 			switch result.Confidence {
 			case "high":
 				highConfidence++

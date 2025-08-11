@@ -14,7 +14,7 @@ type SearchService struct {
 	Client ClientInterface
 }
 
-func (s *SearchService) Query(reqBody *models.SearchQueryRequest) ([]models.SearchResult, error) {
+func (s *SearchService) Query(reqBody *models.SearchQueryRequest) (*models.SearchResponse, error) {
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
@@ -89,21 +89,78 @@ func (s *SearchService) Query(reqBody *models.SearchQueryRequest) ([]models.Sear
 		return nil, err
 	}
 
-	return response.Data, nil
+	// Add debugging to see what we actually received
+	fmt.Printf("DEBUG: Raw response: %+v\n", response)
+	fmt.Printf("DEBUG: Data length: %d\n", len(response.Data))
+	if response.SearchPool != nil {
+		fmt.Printf("DEBUG: SearchPool: %+v\n", *response.SearchPool)
+	} else {
+		fmt.Printf("DEBUG: SearchPool is nil\n")
+	}
+	if response.PageInfo != nil {
+		fmt.Printf("DEBUG: PageInfo: %+v\n", *response.PageInfo)
+	} else {
+		fmt.Printf("DEBUG: PageInfo is nil\n")
+	}
+
+	return &response, nil // Return the complete response, not just response.Data
 }
 
 func (s *SearchService) Search(request *models.SearchRequest) (*models.SearchResponse, error) {
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
-	// Add all search fields
+	// Add required fields
 	if err := w.WriteField("index_id", request.IndexID); err != nil {
 		return nil, fmt.Errorf("failed to write index_id field: %w", err)
 	}
 
+	// Add optional query fields
 	if request.QueryText != "" {
 		if err := w.WriteField("query_text", request.QueryText); err != nil {
 			return nil, fmt.Errorf("failed to write query_text field: %w", err)
+		}
+	}
+
+	if request.QueryMediaType != "" {
+		if err := w.WriteField("query_media_type", request.QueryMediaType); err != nil {
+			return nil, fmt.Errorf("failed to write query_media_type field: %w", err)
+		}
+	}
+
+	if request.QueryMediaURL != "" {
+		if err := w.WriteField("query_media_url", request.QueryMediaURL); err != nil {
+			return nil, fmt.Errorf("failed to write query_media_url field: %w", err)
+		}
+	}
+
+	// Handle file upload if provided
+	if request.QueryMediaFile != "" {
+		file, err := os.Open(request.QueryMediaFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open query media file: %w", err)
+		}
+		defer func(file *os.File) {
+			err := file.Close()
+			if err != nil {
+				fmt.Printf("failed to close query media file: %v\n", err)
+			}
+		}(file)
+
+		part, err := w.CreateFormFile("query_media_file", request.QueryMediaFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create form file: %w", err)
+		}
+
+		if _, err = io.Copy(part, file); err != nil {
+			return nil, fmt.Errorf("failed to copy file content: %w", err)
+		}
+	}
+
+	// Add search options
+	for _, option := range request.SearchOptions {
+		if err := w.WriteField("search_options", option); err != nil {
+			return nil, fmt.Errorf("failed to write search_options field: %w", err)
 		}
 	}
 
@@ -134,19 +191,13 @@ func (s *SearchService) Search(request *models.SearchRequest) (*models.SearchRes
 	return &response, nil
 }
 
-func (s *SearchService) Retrieve(searchID string, pageToken string, includeUserMetadata bool) (*models.SearchResponse, error) {
+func (s *SearchService) Retrieve(pageToken string) (*models.SearchResponse, error) {
 	queryParams := ""
 	if pageToken != "" {
 		queryParams += fmt.Sprintf("page_token=%s", pageToken)
 	}
-	if includeUserMetadata {
-		if queryParams != "" {
-			queryParams += "&"
-		}
-		queryParams += "include_user_metadata=true"
-	}
 
-	url := fmt.Sprintf("/search/%s", searchID)
+	url := fmt.Sprintf("/search/%s", pageToken)
 	if queryParams != "" {
 		url += "?" + queryParams
 	}

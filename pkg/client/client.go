@@ -108,12 +108,17 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
+	// Add debugging to see the raw JSON response
+	fmt.Printf("DEBUG: Raw JSON response: %s\n", string(body))
+
 	if res.StatusCode >= 400 {
 		return nil, handleAPIError(res.StatusCode, body)
 	}
 
 	if v != nil && len(body) > 0 {
 		if err := json.Unmarshal(body, v); err != nil {
+			fmt.Printf("DEBUG: JSON unmarshal error: %v\n", err)
+			fmt.Printf("DEBUG: Trying to unmarshal into type: %T\n", v)
 			return nil, fmt.Errorf("failed to unmarshal JSON response: %w", err)
 		}
 	}
@@ -130,7 +135,12 @@ func (c *Client) DoRaw(req *http.Request) (*http.Response, error) {
 	}
 
 	if res.StatusCode >= 400 {
-		defer res.Body.Close()
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				log.Printf("failed to close error response body: %v", err)
+			}
+		}(res.Body)
 		body, err := io.ReadAll(res.Body)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read error response body: %w", err)

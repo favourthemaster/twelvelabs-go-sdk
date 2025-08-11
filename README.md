@@ -1,115 +1,293 @@
 # TwelveLabs Go SDK
 
-A Go client for the [TwelveLabs API](https://docs.twelvelabs.io/), enabling developers to interact with video understanding and search capabilities from Go applications.
+A comprehensive Go SDK for the TwelveLabs API, providing easy access to video understanding, search, analysis, and embedding capabilities.
 
 ## Features
-- Video upload and management
-- Video search (semantic, object, action, speech, text, etc.)
-- Embeddings generation
-- Index management
-- Task management
-- Idiomatic Go types and error handling
+
+- 🎬 **Video Management**: Upload, index, and manage video content
+- 🔍 **Advanced Search**: Text, image, and video-based search capabilities
+- 🤖 **AI Analysis**: Video analysis, summarization, and content understanding
+- 🧠 **Embeddings**: Generate embeddings for text, images, videos, and audio
+- 📋 **Task Management**: Handle asynchronous video processing tasks
+- 🎯 **Type Safe**: Full Go type definitions for all API responses
 
 ## Installation
 
-```
+```bash
 go get github.com/favourthemaster/twelvelabs-go-sdk
 ```
 
-## Usage
-
-### 1. Import the SDK
+## Quick Start
 
 ```go
+package main
+
 import (
+    "fmt"
+    "log"
+    
     "github.com/favourthemaster/twelvelabs-go-sdk"
-    "os"
-)
-```
-
-### 2. Initialize the Client
-
-```go
-client, err := twelvelabs.NewTwelveLabs(&twelvelabs.Options{
-    APIKey: os.Getenv("TWELVE_LABS_API_KEY"), // or leave blank to use env var
-})
-if err != nil {
-    // handle error
-}
-```
-
-> **Note:** If you do not provide an API key, the SDK will use the `TWELVE_LABS_API_KEY` environment variable. You can also set a custom base URL with the `BaseURL` field in `Options`.
-
-### 3. Search Example
-
-```go
-import (
     "github.com/favourthemaster/twelvelabs-go-sdk/pkg/models"
 )
 
-req := models.SearchRequest{
-    Query:   "A woman vlogs about her summer day",
-    IndexID: "your_index_id",
-}
-resp, err := client.Search.SearchByText(req.IndexID, req.QueryText, []string{"visual", "audio"})
-if err != nil {
-    // handle error
-}
-for _, result := range resp.Data {
-    fmt.Println(result.Transcription)
+func main() {
+    // Initialize the client
+    client, err := twelvelabs.NewTwelveLabs(&twelvelabs.Options{
+        APIKey: "your-api-key-here", // Replace with your actual API key
+    })
+    if err != nil {
+        log.Fatalf("Failed to initialize client: %v", err)
+    }
+
+    // Create an index
+    index, err := client.Indexes.Create(&models.IndexCreateRequest{
+        IndexName: "my-videos",
+        Models: []models.Model{
+            {
+                ModelName:    "marengo2.7",
+                ModelOptions: []string{"visual", "audio"},
+            },
+        },
+    })
+    if err != nil {
+        log.Fatalf("Failed to create index: %v", err)
+    }
+
+    fmt.Printf("Index created: %s\n", index.ID)
 }
 ```
 
-### 4. Video Upload Example
+## Configuration
+
+Before using the SDK, you need to:
+
+1. **Get an API Key**: Sign up at [TwelveLabs](https://twelvelabs.io) and obtain your API key
+2. **Replace Placeholder Values**: Update all example code with your actual API keys and IDs
 
 ```go
+client, err := twelvelabs.NewTwelveLabs(&twelvelabs.Options{
+    APIKey: "your-actual-api-key-here", // Replace with your real API key
+})
+```
+
+## Core Services
+
+### 🗂️ Index Management
+
+```go
+// Create an index
+index, err := client.Indexes.Create(&models.IndexCreateRequest{
+    IndexName: "videos",
+    Models: []models.Model{
+        {
+            ModelName:    "marengo2.7",
+            ModelOptions: []string{"visual", "audio"},
+        },
+    },
+})
+
+// List all indexes
+indexes, err := client.Indexes.List(map[string]string{})
+
+// Get specific index
+index, err := client.Indexes.Retrieve("your-index-id")
+```
+
+### 🎬 Video Management
+
+```go
+// List videos in an index
+videos, err := client.Indexes.Videos.List("your-index-id", map[string]string{
+    "page_limit": "10",
+})
+
+// Get video details
+video, err := client.Indexes.Videos.Retrieve("your-index-id", "your-video-id")
+
+// Update video metadata
+updatedVideo, err := client.Indexes.Videos.Update("your-index-id", "your-video-id", &models.VideoUpdateRequest{
+    UserMetadata: map[string]string{
+        "title": "My Video Title",
+        "category": "educational",
+    },
+})
+```
+
+### 📋 Task Management
+
+```go
+// Create a video indexing task
 task, err := client.Tasks.Create(&models.TasksCreateRequest{
-    IndexID:   "index_id",
-    VideoFile: "./assets/example.mp4",
+    IndexID:  "your-index-id",
+    VideoURL: "https://example.com/your-video.mp4",
 })
-if err != nil {
-    // handle error
-}
-fmt.Println("Uploaded video ID:", task.VideoID)
+
+// Wait for task completion
+completedTask, err := client.Tasks.WaitForDone(task.ID, &wrappers.WaitForDoneOptions{
+    SleepInterval: 10 * time.Second,
+    Callback: func(task *models.Task) error {
+        fmt.Printf("Task status: %s\n", task.Status)
+        return nil
+    },
+})
 ```
 
-### 5. Embeddings Example
+### 🔍 Search
 
 ```go
-// For text embedding
-embedding, err := client.Embed.CreateTextEmbedding("Marengo-retrieval-2.7", "A person running in the park")
-if err != nil {
-    // handle error
-}
-fmt.Println(embedding)
+// Text search
+results, err := client.Search.SearchByText(
+    "your-index-id",
+    "your search query",
+    []string{"visual", "audio"},
+)
 
-// Or, for a generic embedding request:
-embedding, err = client.Embed.Create(&wrappers.EmbedWrapperRequest{
-    ModelName: "Marengo-retrieval-2.7",
-    Text:      "A person running in the park",
+// Image search
+results, err := client.Search.SearchByImage(
+    "your-index-id",
+    "https://example.com/image.jpg",
+    []string{"visual"},
+)
+
+// Advanced search
+results, err := client.Search.Query(&models.SearchQueryRequest{
+    IndexID:       "your-index-id",
+    QueryText:     "your query",
+    SearchOptions: []string{"visual", "audio"},
 })
-if err != nil {
-    // handle error
-}
-fmt.Println(embedding.GetEmbeddings())
+```
+
+### 🤖 AI Analysis
+
+```go
+// Basic video analysis
+response, err := client.Analyze.Analyze(&models.AnalyzeRequest{
+    VideoID: "your-video-id",
+    Prompt:  "your analysis prompt",
+})
+
+// Generate video summary
+summary, err := client.Analyze.GenerateSummary(&models.GenerateSummaryRequest{
+    VideoID: "your-video-id",
+    Type:    "summary",
+    Prompt:  "your summary prompt",
+})
+
+// Generate video gist
+gist, err := client.Analyze.GenerateGist(&models.GenerateGistRequest{
+    VideoID: "your-video-id",
+    Types:   []string{"title", "topic", "hashtag"},
+})
+```
+
+### 🧠 Embeddings
+
+```go
+// Text embedding
+embedding, err := client.Embed.CreateTextEmbedding(
+    "Marengo-retrieval-2.7",
+    "your text content",
+)
+
+// Image embedding
+embedding, err := client.Embed.CreateImageEmbedding(
+    "Marengo-retrieval-2.7",
+    "https://example.com/image.jpg",
+)
+
+// Video embedding
+embedding, err := client.Embed.CreateVideoEmbedding(
+    "Marengo-retrieval-2.7",
+    "https://example.com/video.mp4",
+)
 ```
 
 ## Examples
-See the [`examples/`](./examples/) directory for more usage patterns:
-- `basic_usage.go`: Basic search and video upload
-- `search_example.go`: Advanced search queries
-- `embeddings_example.go`: Embedding generation
-- `tasks_example.go`: Task management
-- `videos_example.go`: Video management
+
+The `examples/` directory contains comprehensive examples for each service:
+
+- **[basic_usage.go](examples/basic_usage.go)** - Getting started with the SDK
+- **[advanced_usage.go](examples/advanced_usage.go)** - Advanced patterns and bulk operations
+- **[videos_example.go](examples/videos_example.go)** - Video management and metadata operations
+- **[search_example.go](examples/search_example.go)** - All types of search functionality
+- **[analyze_example.go](examples/analyze_example.go)** - Video analysis and AI features
+- **[embeddings_example.go](examples/embeddings_example.go)** - Embedding generation for all media types
+- **[tasks_example.go](examples/tasks_example.go)** - Task management and monitoring
+
+### Running Examples
+
+1. Replace placeholder values in the example files:
+   - `"your-api-key-here"` → Your actual TwelveLabs API key
+   - `"your-index-id-here"` → Your actual index ID
+   - `"your-video-id-here"` → Your actual video ID
+   - URLs → Your actual media URLs
+
+2. Run any example:
+```bash
+go run examples/basic_usage.go
+```
 
 ## Error Handling
-All errors are wrapped in the `pkg/errors` package for consistent error handling.
 
-## Types
-All request and response types are defined in `pkg/models/types.go`.
+The SDK provides comprehensive error handling:
+
+```go
+client, err := twelvelabs.NewTwelveLabs(&twelvelabs.Options{
+    APIKey: "your-api-key",
+})
+if err != nil {
+    log.Fatalf("Failed to initialize client: %v", err)
+}
+
+result, err := client.Search.SearchByText("index-id", "query", []string{"visual"})
+if err != nil {
+    // Handle specific error types
+    switch err.(type) {
+    case *errors.AuthenticationError:
+        log.Printf("Authentication failed: %v", err)
+    case *errors.RateLimitError:
+        log.Printf("Rate limit exceeded: %v", err)
+    default:
+        log.Printf("API error: %v", err)
+    }
+    return
+}
+```
+
+## Models and Types
+
+The SDK includes full Go type definitions for all API requests and responses. Key types include:
+
+- `models.Index` - Index information and configuration
+- `models.Video` - Video metadata and details
+- `models.Task` - Task status and information
+- `models.SearchResult` - Search result data
+- `models.AnalyzeResponse` - Analysis results
+- `models.EmbeddingResponse` - Embedding vectors
 
 ## Contributing
-Pull requests are welcome! Please open issues for bugs or feature requests.
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
 ## License
-MIT
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+- 📖 [TwelveLabs Documentation](https://docs.twelvelabs.io/)
+- 💬 [TwelveLabs Community](https://community.twelvelabs.io/)
+- 🐛 [Report Issues](https://github.com/favourthemaster/twelvelabs-go-sdk/issues)
+
+## Changelog
+
+### Latest Changes
+- ✅ Sanitized all examples for public GitHub usage
+- ✅ Removed dependency on environment variables
+- ✅ Added comprehensive placeholder value system
+- ✅ Improved error handling and validation
+- ✅ Enhanced documentation and examples

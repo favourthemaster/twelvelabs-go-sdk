@@ -3,16 +3,15 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/favourthemaster/twelvelabs-go-sdk"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/models"
 )
 
 func main() {
-	// Initialize client
+	// Initialize client using placeholder API key
 	client, err := twelvelabs.NewTwelveLabs(&twelvelabs.Options{
-		APIKey: os.Getenv("TWELVE_LABS_API_KEY"),
+		APIKey: "your-api-key-here", // Replace with your actual API key
 	})
 	if err != nil {
 		log.Fatalf("Failed to initialize client: %v", err)
@@ -21,6 +20,7 @@ func main() {
 	fmt.Println("🎬 TwelveLabs Go SDK - Video Management Examples")
 	fmt.Println("================================================")
 
+	// Use placeholder index ID
 	indexID := "your-index-id-here" // Replace with your actual index ID
 
 	// 1. List all videos in an index
@@ -42,8 +42,9 @@ func main() {
 	fmt.Printf("   First %d videos:\n", displayCount)
 	for i := 0; i < displayCount; i++ {
 		video := allVideos[i]
+		//fmt.Println(video)
 		fmt.Printf("   %d. ID: %s | File: %s | Duration: %.1fs\n",
-			i+1, video.ID, video.FileName, video.Duration)
+			i+1, video.ID, video.Metadata.FileName, video.Metadata.Duration)
 	}
 
 	// 2. List videos with pagination
@@ -70,9 +71,9 @@ func main() {
 		} else {
 			fmt.Printf("✅ Video Details:\n")
 			fmt.Printf("   ID: %s\n", videoDetails.ID)
-			fmt.Printf("   File Name: %s\n", videoDetails.FileName)
-			fmt.Printf("   Duration: %.2f seconds\n", videoDetails.Duration)
-			fmt.Printf("   Index ID: %s\n", videoDetails.IndexID)
+			fmt.Printf("   File Name: %s\n", videoDetails.Metadata.FileName)
+			fmt.Printf("   Duration: %.2f seconds\n", videoDetails.Metadata.Duration)
+			fmt.Printf("   Index ID: %s\n", indexID)
 			fmt.Printf("   Created: %s\n", videoDetails.CreatedAt)
 		}
 	}
@@ -90,8 +91,8 @@ func main() {
 				"tags":        "nature,outdoor,beautiful",
 				"location":    "Mountain Park",
 				"weather":     "sunny",
-				"duration":    fmt.Sprintf("%.1f", firstVideo.Duration),
-				"updated_by":  "go_sdk_example",
+				//"duration":    fmt.Sprintf("%.1f", firstVideo.Metadata.Duration),
+				"updated_by": "go_sdk_example",
 			},
 		})
 		if err != nil {
@@ -117,7 +118,7 @@ func main() {
 		}
 
 		// Add specific metadata based on video characteristics
-		if video.Duration > 60 {
+		if video.Metadata.Duration > 60 {
 			metadata["length_category"] = "long"
 		} else {
 			metadata["length_category"] = "short"
@@ -141,7 +142,7 @@ func main() {
 	shortVideos := []models.Video{}
 
 	for _, video := range allVideos {
-		if video.Duration > 60 {
+		if video.Metadata.Duration > 60 {
 			longVideos = append(longVideos, video)
 		} else {
 			shortVideos = append(shortVideos, video)
@@ -163,12 +164,12 @@ func main() {
 		shortestVideo = allVideos[0]
 
 		for _, video := range allVideos {
-			totalDuration += video.Duration
+			totalDuration += video.Metadata.Duration
 
-			if video.Duration > longestVideo.Duration {
+			if video.Metadata.Duration > longestVideo.Metadata.Duration {
 				longestVideo = video
 			}
-			if video.Duration < shortestVideo.Duration {
+			if video.Metadata.Duration < shortestVideo.Metadata.Duration {
 				shortestVideo = video
 			}
 		}
@@ -179,8 +180,8 @@ func main() {
 		fmt.Printf("   Total videos: %d\n", len(allVideos))
 		fmt.Printf("   Total duration: %.2f seconds (%.2f minutes)\n", totalDuration, totalDuration/60)
 		fmt.Printf("   Average duration: %.2f seconds\n", averageDuration)
-		fmt.Printf("   Longest video: %s (%.2fs)\n", longestVideo.FileName, longestVideo.Duration)
-		fmt.Printf("   Shortest video: %s (%.2fs)\n", shortestVideo.FileName, shortestVideo.Duration)
+		fmt.Printf("   Longest video: %s (%.2fs)\n", longestVideo.Metadata.FileName, longestVideo.Metadata.Duration)
+		fmt.Printf("   Shortest video: %s (%.2fs)\n", shortestVideo.Metadata.FileName, shortestVideo.Metadata.Duration)
 	}
 
 	// 8. Video deletion (commented out for safety)

@@ -96,12 +96,46 @@ func (s *EmbedService) Create(reqBody *models.EmbedRequest) (*models.EmbedRespon
 		}
 	}
 
+	// Add audio_url field if provided
+	if reqBody.AudioURL != "" {
+		if err := w.WriteField("audio_url", reqBody.AudioURL); err != nil {
+			return nil, fmt.Errorf("failed to write audio_url field: %w", err)
+		}
+	}
+
+	if reqBody.AudioFile != "" {
+		file, err := os.Open(reqBody.AudioFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open audio file: %w", err)
+		}
+		defer func(file *os.File) {
+			err := file.Close()
+			if err != nil {
+				fmt.Printf("failed to close audio file: %v\n", err)
+			}
+		}(file)
+
+		part, err := w.CreateFormFile("audio_file", reqBody.AudioFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create form file: %w", err)
+		}
+
+		if _, err = io.Copy(part, file); err != nil {
+			return nil, fmt.Errorf("failed to copy file content: %w", err)
+		}
+	}
+
 	err := w.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := s.Client.NewRequest("POST", "/embed", &b)
+	path := "/embed"
+	if reqBody.VideoFile != "" || reqBody.VideoURL != "" {
+		path = "/embed/tasks"
+	}
+
+	req, err := s.Client.NewRequest("POST", path, &b)
 	if err != nil {
 		return nil, err
 	}

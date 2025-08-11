@@ -3,16 +3,15 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/favourthemaster/twelvelabs-go-sdk"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/wrappers"
 )
 
 func main() {
-	// Initialize client
+	// Initialize client using placeholder API key
 	client, err := twelvelabs.NewTwelveLabs(&twelvelabs.Options{
-		APIKey: os.Getenv("TWELVE_LABS_API_KEY"),
+		APIKey: "your-api-key-here", // Replace with your actual API key
 	})
 	if err != nil {
 		log.Fatalf("Failed to initialize client: %v", err)
@@ -26,11 +25,11 @@ func main() {
 	// 1. Text embeddings
 	fmt.Println("\n📝 Creating text embeddings...")
 	textQueries := []string{
-		"A person walking in a beautiful park",
-		"Sunset over mountain landscape",
-		"Children playing in playground",
-		"City traffic during rush hour",
-		"Ocean waves crashing on beach",
+		"your first text query here",
+		"your second text query here",
+		"your third text query here",
+		"your fourth text query here",
+		"your fifth text query here",
 	}
 
 	fmt.Println("   Processing multiple text queries...")
@@ -54,9 +53,7 @@ func main() {
 	// 2. Image embeddings
 	fmt.Println("\n🖼️ Creating image embeddings...")
 	imageURLs := []string{
-		"https://example.com/nature_scene.jpg",
-		"https://example.com/city_skyline.jpg",
-		"https://example.com/beach_sunset.jpg",
+		"https://example.com/your-image-url.jpg",
 	}
 
 	for i, imageURL := range imageURLs {
@@ -73,37 +70,35 @@ func main() {
 		}
 	}
 
-	// 3. Local file embeddings
-	fmt.Println("\n📁 Creating embeddings from local files...")
-
-	// Local image embedding
-	_, err = client.Embed.Create(&wrappers.EmbedWrapperRequest{
-		ModelName: modelName,
-		ImageFile: "./assets/search_sample.png",
-	})
-	if err != nil {
-		log.Printf("Error creating local image embedding: %v", err)
-	} else {
-		fmt.Printf("   ✅ Local image embedding created\n")
-	}
-
-	// Local audio embedding
-	_, err = client.Embed.Create(&wrappers.EmbedWrapperRequest{
-		ModelName: modelName,
-		AudioFile: "./assets/audio_sample.mp3",
-	})
-	if err != nil {
-		log.Printf("Error creating local audio embedding: %v", err)
-	} else {
-		fmt.Printf("   ✅ Local audio embedding created\n")
-	}
+	//// 3. Local file embeddings
+	//fmt.Println("\n📁 Creating embeddings from local files...")
+	//
+	//// Local image embedding
+	//_, err = client.Embed.Create(&wrappers.EmbedWrapperRequest{
+	//	ModelName: modelName,
+	//	ImageFile: "./assets/search_sample.png",
+	//})
+	//if err != nil {
+	//	log.Printf("Error creating local image embedding: %v", err)
+	//} else {
+	//	fmt.Printf("   ✅ Local image embedding created\n")
+	//}
+	//
+	//// Local audio embedding
+	//_, err = client.Embed.Create(&wrappers.EmbedWrapperRequest{
+	//	ModelName: modelName,
+	//	AudioFile: "./assets/audio_sample.mp3",
+	//})
+	//if err != nil {
+	//	log.Printf("Error creating local audio embedding: %v", err)
+	//} else {
+	//	fmt.Printf("   ✅ Local audio embedding created\n")
+	//}
 
 	// 4. Video embeddings
 	fmt.Println("\n🎬 Creating video embeddings...")
 	videoURLs := []string{
-		"https://example.com/sample_video1.mp4",
-		"https://example.com/sample_video2.mp4",
-		"https://example.com/sample_video3.mp4",
+		"https://example.com/your-video-url.mp4",
 	}
 
 	for i, videoURL := range videoURLs {
@@ -134,8 +129,7 @@ func main() {
 	// 5. Audio embeddings from URLs
 	fmt.Println("\n🎵 Creating audio embeddings from URLs...")
 	audioURLs := []string{
-		"https://example.com/speech_sample.mp3",
-		"https://example.com/music_sample.wav",
+		"https://example.com/your-audio-url.mp3",
 	}
 
 	for i, audioURL := range audioURLs {
@@ -152,11 +146,11 @@ func main() {
 	fmt.Println("\n📦 Batch embedding creation...")
 
 	batchRequests := []*wrappers.EmbedWrapperRequest{
-		{ModelName: modelName, Text: "Mountain hiking adventure"},
-		{ModelName: modelName, Text: "Urban city exploration"},
-		{ModelName: modelName, Text: "Peaceful beach relaxation"},
-		{ModelName: modelName, ImageURL: "https://example.com/batch_image1.jpg"},
-		{ModelName: modelName, ImageURL: "https://example.com/batch_image2.jpg"},
+		{ModelName: modelName, Text: "your first text here"},
+		{ModelName: modelName, Text: "your second text here"},
+		{ModelName: modelName, Text: "your third text here"},
+		{ModelName: modelName, ImageURL: "https://example.com/your-first-image.jpg"},
+		{ModelName: modelName, ImageURL: "https://example.com/your-second-image.jpg"},
 	}
 
 	fmt.Printf("   Processing %d embedding requests...\n", len(batchRequests))
@@ -187,10 +181,10 @@ func main() {
 
 	// Create embeddings for similar concepts
 	concepts := map[string]string{
-		"nature1": "Beautiful forest with tall trees",
-		"nature2": "Lush green woodland area",
-		"city1":   "Busy urban street with cars",
-		"city2":   "Metropolitan downtown district",
+		"concept1": "your first concept description",
+		"concept2": "your similar concept description",
+		"concept3": "your third concept description",
+		"concept4": "your fourth concept description",
 	}
 
 	embeddings := make(map[string][]float64)

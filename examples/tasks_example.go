@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/favourthemaster/twelvelabs-go-sdk"
@@ -12,10 +11,11 @@ import (
 )
 
 func main() {
-	// Initialize client
+	// Initialize client using placeholder API key
 	client, err := twelvelabs.NewTwelveLabs(&twelvelabs.Options{
-		APIKey: os.Getenv("TWELVE_LABS_API_KEY"),
+		APIKey: "your-api-key-here", // Replace with your actual API key
 	})
+
 	if err != nil {
 		log.Fatalf("Failed to initialize client: %v", err)
 	}
@@ -25,29 +25,29 @@ func main() {
 
 	indexID := "your-index-id-here" // Replace with your actual index ID
 
-	// 1. Create a single task with local file
-	fmt.Println("\n📁 Creating task with local video file...")
-	singleTask, err := client.Tasks.Create(&models.TasksCreateRequest{
-		IndexID:           indexID,
-		VideoFile:         "./assets/example.mp4",
-		EnableVideoStream: true,
-		UserMetadata: map[string]string{
-			"source":      "local_upload",
-			"category":    "demo",
-			"uploaded_by": "go_sdk_example",
-		},
-	})
-	if err != nil {
-		log.Printf("Error creating single task: %v", err)
-	} else {
-		fmt.Printf("✅ Single task created: %s\n", singleTask.ID)
-	}
+	//// 1. Create a single task with local file
+	//fmt.Println("\n📁 Creating task with local video file...")
+	//singleTask, err := client.Tasks.Create(&models.TasksCreateRequest{
+	//	IndexID:           indexID,
+	//	VideoFile:         "./assets/example.mp4",
+	//	EnableVideoStream: true,
+	//	UserMetadata: map[string]string{
+	//		"source":      "local_upload",
+	//		"category":    "demo",
+	//		"uploaded_by": "go_sdk_example",
+	//	},
+	//})
+	//if err != nil {
+	//	log.Printf("Error creating single task: %v", err)
+	//} else {
+	//	fmt.Printf("✅ Single task created: %s\n", singleTask.ID)
+	//}
 
 	// 2. Create a single task with URL
 	fmt.Println("\n🌐 Creating task with video URL...")
 	urlTask, err := client.Tasks.Create(&models.TasksCreateRequest{
 		IndexID:             indexID,
-		VideoURL:            "https://example.com/sample-video.mp4",
+		VideoURL:            "https://example.com/your-video-url.mp4",
 		VideoStartOffsetSec: 10,  // Start processing from 10 seconds
 		VideoEndOffsetSec:   120, // Stop processing at 2 minutes
 		EnableVideoStream:   true,
@@ -63,14 +63,12 @@ func main() {
 	bulkTasks, err := client.Tasks.CreateBulk(&wrappers.CreateBulkRequest{
 		IndexID: indexID,
 		VideoURLs: []string{
-			"https://example.com/video1.mp4",
-			"https://example.com/video2.mp4",
-			"https://example.com/video3.mp4",
+			"https://example.com/your-first-video.mp4",
 		},
-		VideoFiles: []string{
-			"./assets/local_video1.mp4",
-			"./assets/local_video2.mp4",
-		},
+		//VideoFiles: []string{
+		//	"./assets/local_video1.mp4",
+		//	"./assets/local_video2.mp4",
+		//},
 		EnableVideoStream: true,
 	})
 	if err != nil {
