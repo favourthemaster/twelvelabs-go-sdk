@@ -280,7 +280,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Support
 
 - 📖 [TwelveLabs Documentation](https://docs.twelvelabs.io/)
-- 💬 [TwelveLabs Community](https://community.twelvelabs.io/)
+- 💬 [TwelveLabs Community](https://discord.gg/7KyJbgBJ)
 - 🐛 [Report Issues](https://github.com/favourthemaster/twelvelabs-go-sdk/issues)
 
 ## Changelog
