@@ -234,12 +234,15 @@ type GenerateSummaryResponse struct {
 	} `json:"highlights,omitempty"`
 	Usage *struct {
 		OutputTokens int `json:"output_tokens,omitempty"`
-	}
+	} `json:"usage,omitempty"`
 }
 
 type AnalyzeResponse struct {
-	ID   string `json:"id"`
-	Data string `json:"data"`
+	ID    string `json:"id"`
+	Data  string `json:"data"`
+	Usage *struct {
+		OutputTokens int `json:"output_tokens,omitempty"`
+	} `json:"usage,omitempty"`
 }
 
 type AnalyzeStreamResponse struct {
