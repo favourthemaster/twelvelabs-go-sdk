@@ -108,9 +108,6 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	// Add debugging to see the raw JSON response
-	fmt.Printf("DEBUG: Raw JSON response: %s\n", string(body))
-
 	if res.StatusCode >= 400 {
 		return nil, handleAPIError(res.StatusCode, body)
 	}
