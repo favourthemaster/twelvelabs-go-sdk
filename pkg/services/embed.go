@@ -142,7 +142,7 @@ func (s *EmbedService) Create(reqBody *models.EmbedRequest) (*models.EmbedRespon
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
 
-	if reqBody.VideoFile == "" || reqBody.VideoURL == "" {
+	if reqBody.VideoFile != "" || reqBody.VideoURL != "" {
 		var data map[string]interface{}
 		_, err = s.Client.Do(req, &data)
 		if err != nil {
