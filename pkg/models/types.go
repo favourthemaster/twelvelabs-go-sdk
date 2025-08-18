@@ -151,6 +151,21 @@ type EmbedResponse struct {
 	ImageEmbedding *ImageEmbeddingResult `json:"image_embedding,omitempty"`
 }
 
+type EmbedTaskStatus struct {
+	ID             string `json:"_id"`
+	Status         string `json:"status"`
+	ModelName      string `json:"model_name"`
+	VideoEmbedding struct {
+		MetaData struct {
+			Duration            float64  `json:"duration"`
+			InputFilename       string   `json:"input_filename,omitempty"`
+			InputURL            string   `json:"input_url,omitempty"`
+			VideoClipLength     float64  `json:"video_clip_length"`
+			VideoEmbeddingScope []string `json:"video_embedding_scope"`
+		} `json:"metadata,omitempty"`
+	} `json:"video_embedding,omitempty"`
+}
+
 type VideoEmbeddingResult struct {
 	Segments []EmbeddingSegment     `json:"segments"`
 	Metadata map[string]interface{} `json:"metadata,omitempty"`

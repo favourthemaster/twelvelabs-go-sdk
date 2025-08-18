@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/models"
 )
@@ -141,6 +142,21 @@ func (s *EmbedService) Create(reqBody *models.EmbedRequest) (*models.EmbedRespon
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
 
+	if reqBody.VideoFile == "" || reqBody.VideoURL == "" {
+		var data map[string]interface{}
+		_, err = s.Client.Do(req, &data)
+		if err != nil {
+			return nil, err
+		}
+		if embedID, ok := data["_id"].(string); ok {
+			embedResponse, err := s.WaitForEmbedTask(embedID, 10*time.Second, nil)
+			if err != nil {
+				return nil, fmt.Errorf("failed to wait for embed task: %w", err)
+			}
+			return embedResponse, nil
+		}
+	}
+
 	var embedResponse models.EmbedResponse
 	_, err = s.Client.Do(req, &embedResponse)
 	if err != nil {
@@ -148,4 +164,53 @@ func (s *EmbedService) Create(reqBody *models.EmbedRequest) (*models.EmbedRespon
 	}
 
 	return &embedResponse, nil
+}
+
+func (s *EmbedService) WaitForEmbedTask(taskID string, interval time.Duration, callback func(status models.EmbedTaskStatus)) (*models.EmbedResponse, error) {
+	for {
+		req, err := s.Client.NewRequest("GET", fmt.Sprintf("/embed/tasks/%s/status", taskID), nil)
+		if err != nil {
+			return nil, err
+		}
+
+		var status models.EmbedTaskStatus
+		resp, err := s.Client.Do(req, &status)
+		if err != nil {
+			return nil, err
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("failed to get task status: %s", resp.Status)
+		}
+
+		if status.Status == "ready" {
+			embedReq, err := s.Client.NewRequest("GET", fmt.Sprintf("/embed/tasks/%s", taskID), nil)
+			if err != nil {
+				return nil, err
+			}
+
+			var embedResponse models.EmbedResponse
+			_, err = s.Client.Do(embedReq, &embedResponse)
+			if err != nil {
+				return nil, err
+			}
+
+			return &embedResponse, nil
+		} else if status.Status == "failed" {
+			return nil, fmt.Errorf("embed task failed with status: %s", status.Status)
+		}
+
+		if callback != nil {
+			callback(status)
+		}
+
+		func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				fmt.Printf("failed to close response body: %v\n", err)
+			}
+		}(resp.Body)
+
+		time.Sleep(interval)
+	}
 }
