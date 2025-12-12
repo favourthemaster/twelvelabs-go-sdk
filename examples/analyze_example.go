@@ -1,6 +1,7 @@
 package main
 
 import (
+"context"
 	"fmt"
 	"log"
 	"strings"
@@ -25,7 +26,7 @@ func main() {
 
 	// 1. Basic video analysis with video ID
 	fmt.Println("\n📹 Analyzing video by ID...")
-	analyzeResp, err := client.Analyze.Analyze(&models.AnalyzeRequest{
+	analyzeResp, err := client.Analyze.Analyze(context.Background(), &models.AnalyzeRequest{
 		VideoID: videoID,
 		Prompt:  "your analysis prompt here",
 		Stream:  false,
@@ -38,7 +39,7 @@ func main() {
 		fmt.Printf("Response: %s\n", analyzeResp.Data)
 	}
 
-	gistResponse, err := client.Analyze.GenerateGist(&models.GenerateGistRequest{
+	gistResponse, err := client.Analyze.GenerateGist(context.Background(), &models.GenerateGistRequest{
 		VideoID: videoID,
 		Types: []string{
 			"title",
@@ -56,7 +57,7 @@ func main() {
 		fmt.Printf("Hashtags: %v\n", gistResponse.Hashtags)
 	}
 
-	summary, err := client.Analyze.GenerateSummary(&models.GenerateSummaryRequest{
+	summary, err := client.Analyze.GenerateSummary(context.Background(), &models.GenerateSummaryRequest{
 		VideoID: videoID,
 		Type:    "summary",
 		Prompt:  "your summary prompt here",
@@ -69,7 +70,7 @@ func main() {
 		fmt.Printf("Summary: %s\n", summary.Summary)
 	}
 
-	chapters, err := client.Analyze.GenerateSummary(&models.GenerateSummaryRequest{
+	chapters, err := client.Analyze.GenerateSummary(context.Background(), &models.GenerateSummaryRequest{
 		VideoID: videoID,
 		Type:    "chapter",
 		Prompt:  "your chapter generation prompt here",
@@ -82,7 +83,7 @@ func main() {
 		fmt.Printf("Chapters: %s\n", chapters.Chapters)
 	}
 
-	highlights, err := client.Analyze.GenerateSummary(&models.GenerateSummaryRequest{
+	highlights, err := client.Analyze.GenerateSummary(context.Background(), &models.GenerateSummaryRequest{
 		VideoID: videoID,
 		Type:    "highlight",
 		Prompt:  "your highlight identification prompt here",
@@ -96,7 +97,7 @@ func main() {
 	}
 
 	// 3. Advanced analysis with custom parameters
-	advancedResp, err := client.Analyze.Analyze(&models.AnalyzeRequest{
+	advancedResp, err := client.Analyze.Analyze(context.Background(), &models.AnalyzeRequest{
 		VideoID:     videoID,
 		Prompt:      "your detailed analysis prompt here",
 		Temperature: 0.7,
@@ -116,7 +117,7 @@ func main() {
 	var generationID string
 	var accumulatedText strings.Builder
 
-	err = client.Analyze.AnalyzeStream(&models.AnalyzeRequest{
+	err = client.Analyze.AnalyzeStream(context.Background(), &models.AnalyzeRequest{
 		VideoID: videoID,
 		Prompt:  "your streaming analysis prompt here",
 	}, func(event *models.AnalyzeStreamResponse) error {
@@ -165,7 +166,7 @@ func main() {
 	for i, prompt := range prompts {
 		fmt.Printf("\n🔍 Analysis %d: %s\n", i+1, prompt)
 
-		batchResp, err := client.Analyze.Analyze(&models.AnalyzeRequest{
+		batchResp, err := client.Analyze.Analyze(context.Background(), &models.AnalyzeRequest{
 			VideoID: videoID,
 			Prompt:  prompt,
 			Stream:  false,
@@ -187,7 +188,7 @@ func main() {
 	fmt.Println("\n⚠️ Testing error handling...")
 
 	// Test with invalid video ID
-	_, err = client.Analyze.Analyze(&models.AnalyzeRequest{
+	_, err = client.Analyze.Analyze(context.Background(), &models.AnalyzeRequest{
 		VideoID: "invalid_video_id",
 		Prompt:  "your test prompt here",
 	})
@@ -197,7 +198,7 @@ func main() {
 	}
 
 	// Test with empty prompt
-	_, err = client.Analyze.Analyze(&models.AnalyzeRequest{
+	_, err = client.Analyze.Analyze(context.Background(), &models.AnalyzeRequest{
 		VideoID: videoID,
 		Prompt:  "",
 	})

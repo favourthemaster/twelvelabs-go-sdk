@@ -1,6 +1,7 @@
 package main
 
 import (
+"context"
 	"fmt"
 	"log"
 	"time"
@@ -24,7 +25,7 @@ func main() {
 
 	// 1. Create an Index
 	fmt.Println("\n📁 Creating an index...")
-	index, err := client.Indexes.Create(&models.IndexCreateRequest{
+	index, err := client.Indexes.Create(context.Background(), &models.IndexCreateRequest{
 		IndexName: "example_index", // Replace with your desired index name
 		Models: []models.Model{
 			{
@@ -45,7 +46,7 @@ func main() {
 
 	// 2. List all indexes
 	fmt.Println("\n📋 Listing all indexes...")
-	indexes, err := client.Indexes.List(map[string]string{})
+	indexes, err := client.Indexes.List(context.Background(), map[string]string{})
 	if err != nil {
 		log.Printf("Error listing indexes: %v", err)
 		return
@@ -57,7 +58,7 @@ func main() {
 
 	// 3. Create a single task
 	fmt.Println("\n🎬 Creating a video indexing task...")
-	task, err := client.Tasks.Create(&models.TasksCreateRequest{
+	task, err := client.Tasks.Create(context.Background(), &models.TasksCreateRequest{
 		IndexID:  index.ID,
 		VideoURL: "https://example.com/your-video-url.mp4", // Replace with your actual video URL
 	})
@@ -69,7 +70,7 @@ func main() {
 
 	// 4. Wait for the task to complete before proceeding
 	fmt.Printf("\n⏳ Waiting for task %s to complete...\n", task.ID)
-	completedTask, err := client.Tasks.WaitForDone(task.ID, &wrappers.WaitForDoneOptions{
+	completedTask, err := client.Tasks.WaitForDone(context.Background(), task.ID, &wrappers.WaitForDoneOptions{
 		SleepInterval: 10 * time.Second,
 		Callback: func(task *models.Task) error {
 			fmt.Printf("   📊 Task status: %s\n", task.Status)
@@ -89,7 +90,7 @@ func main() {
 
 	// 5. List tasks
 	fmt.Println("\n📝 Listing recent tasks...")
-	tasks, err := client.Tasks.List(map[string]string{
+	tasks, err := client.Tasks.List(context.Background(), map[string]string{
 		"index_id": index.ID,
 	})
 	if err != nil {
@@ -103,7 +104,7 @@ func main() {
 
 	// 6. Search with text query (basic)
 	fmt.Println("\n🔍 Performing text search...")
-	searchResults, err := client.Search.SearchByText(
+	searchResults, err := client.Search.SearchByText(context.Background(), 
 		index.ID,
 		"your search query here", // Replace with your actual search query
 		[]string{"visual"},
@@ -120,7 +121,7 @@ func main() {
 
 	// 7. Create text embedding
 	fmt.Println("\n🧠 Creating text embedding...")
-	embedding, err := client.Embed.CreateTextEmbedding(
+	embedding, err := client.Embed.CreateTextEmbedding(context.Background(), 
 		"Marengo-retrieval-2.7",
 		"your text here", // Replace with your actual text
 	)

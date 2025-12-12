@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -13,7 +14,7 @@ import (
 )
 
 type ClientInterface interface {
-	NewRequest(method, path string, body interface{}) (*http.Request, error)
+	NewRequest(ctx context.Context, method, path string, body interface{}) (*http.Request, error)
 	Do(req *http.Request, v interface{}) (*http.Response, error)
 	DoRaw(req *http.Request) (*http.Response, error)
 }
@@ -22,7 +23,7 @@ type EmbedService struct {
 	Client ClientInterface
 }
 
-func (s *EmbedService) Create(reqBody *models.EmbedRequest) (*models.EmbedResponse, error) {
+func (s *EmbedService) Create(ctx context.Context, reqBody *models.EmbedRequest) (*models.EmbedResponse, error) {
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
@@ -136,7 +137,7 @@ func (s *EmbedService) Create(reqBody *models.EmbedRequest) (*models.EmbedRespon
 		path = "/embed/tasks"
 	}
 
-	req, err := s.Client.NewRequest("POST", path, &b)
+	req, err := s.Client.NewRequest(ctx, "POST", path, &b)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +150,7 @@ func (s *EmbedService) Create(reqBody *models.EmbedRequest) (*models.EmbedRespon
 			return nil, err
 		}
 		if embedID, ok := data["_id"].(string); ok {
-			embedResponse, err := s.WaitForEmbedTask(embedID, 10*time.Second, nil)
+			embedResponse, err := s.WaitForEmbedTask(ctx, embedID, 10*time.Second, nil)
 			if err != nil {
 				return nil, fmt.Errorf("failed to wait for embed task: %w", err)
 			}
@@ -166,9 +167,16 @@ func (s *EmbedService) Create(reqBody *models.EmbedRequest) (*models.EmbedRespon
 	return &embedResponse, nil
 }
 
-func (s *EmbedService) WaitForEmbedTask(taskID string, interval time.Duration, callback func(status models.EmbedTaskStatus)) (*models.EmbedResponse, error) {
+func (s *EmbedService) WaitForEmbedTask(ctx context.Context, taskID string, interval time.Duration, callback func(status models.EmbedTaskStatus)) (*models.EmbedResponse, error) {
 	for {
-		req, err := s.Client.NewRequest("GET", fmt.Sprintf("/embed/tasks/%s/status", taskID), nil)
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		req, err := s.Client.NewRequest(ctx, "GET", fmt.Sprintf("/embed/tasks/%s/status", taskID), nil)
 		if err != nil {
 			return nil, err
 		}
@@ -184,7 +192,7 @@ func (s *EmbedService) WaitForEmbedTask(taskID string, interval time.Duration, c
 		}
 
 		if status.Status == "ready" {
-			embedReq, err := s.Client.NewRequest("GET", fmt.Sprintf("/embed/tasks/%s", taskID), nil)
+			embedReq, err := s.Client.NewRequest(ctx, "GET", fmt.Sprintf("/embed/tasks/%s", taskID), nil)
 			if err != nil {
 				return nil, err
 			}

@@ -1,6 +1,7 @@
 package main
 
 import (
+"context"
 	"fmt"
 	"log"
 
@@ -24,7 +25,7 @@ func main() {
 
 	// 1. Basic text search
 	fmt.Println("\n📝 Basic text search...")
-	textResult, err := client.Search.SearchByText(
+	textResult, err := client.Search.SearchByText(context.Background(), 
 		indexID,
 		"your search query here",
 		[]string{"visual", "audio"},
@@ -38,7 +39,7 @@ func main() {
 
 	// 2. Image-based search
 	fmt.Println("\n🖼️ Image-based search...")
-	imageResults, err := client.Search.SearchByImage(
+	imageResults, err := client.Search.SearchByImage(context.Background(), 
 		indexID,
 		"https://example.com/your-image-url.jpg",
 		[]string{"visual"},
@@ -52,7 +53,7 @@ func main() {
 
 	// 4. Advanced search with custom parameters
 	fmt.Println("\n⚙️ Advanced search with custom parameters...")
-	advancedResults, err := client.Search.Query(&models.SearchQueryRequest{
+	advancedResults, err := client.Search.Query(context.Background(), &models.SearchQueryRequest{
 		IndexID:       indexID,
 		QueryText:     "your advanced search query",
 		SearchOptions: []string{"visual", "audio"},
@@ -66,7 +67,7 @@ func main() {
 
 	//// 5. Search with local media file
 	//fmt.Println("\n📁 Search with local image file...")
-	//localFileResults, err := client.Search.Query(&models.SearchQueryRequest{
+	//localFileResults, err := client.Search.Query(context.Background(), &models.SearchQueryRequest{
 	//	IndexID:        indexID,
 	//	QueryMediaType: "image",
 	//	QueryMediaFile: "./assets/search_sample.png",
@@ -81,7 +82,7 @@ func main() {
 
 	// 7. Search with pagination and filtering
 	fmt.Println("\n📄 Search with pagination...")
-	paginatedResults, err := client.Search.Query(&models.SearchQueryRequest{
+	paginatedResults, err := client.Search.Query(context.Background(), &models.SearchQueryRequest{
 		IndexID:       indexID,
 		QueryText:     "your paginated search query",
 		SearchOptions: []string{"visual"},
@@ -93,7 +94,7 @@ func main() {
 
 		if paginatedResults.PageInfo.NextPageToken != "" {
 			fmt.Println("   📄 Getting next page...")
-			nextPageResults, err := client.Search.Retrieve(
+			nextPageResults, err := client.Search.Retrieve(context.Background(), 
 				paginatedResults.PageInfo.NextPageToken,
 			)
 			if err != nil {

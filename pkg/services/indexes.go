@@ -1,7 +1,9 @@
 package services
 
 import (
+	"context"
 	"fmt"
+
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/models"
 )
 
@@ -9,7 +11,7 @@ type IndexesService struct {
 	Client ClientInterface
 }
 
-func (s *IndexesService) List(filters map[string]string) ([]models.Index, error) {
+func (s *IndexesService) List(ctx context.Context, filters map[string]string) ([]models.Index, error) {
 	queryParams := ""
 	for key, value := range filters {
 		if queryParams != "" {
@@ -23,7 +25,7 @@ func (s *IndexesService) List(filters map[string]string) ([]models.Index, error)
 		url += "?" + queryParams
 	}
 
-	req, err := s.Client.NewRequest("GET", url, nil)
+	req, err := s.Client.NewRequest(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -39,8 +41,8 @@ func (s *IndexesService) List(filters map[string]string) ([]models.Index, error)
 	return response.Data, nil
 }
 
-func (s *IndexesService) Create(reqBody *models.IndexCreateRequest) (*models.Index, error) {
-	req, err := s.Client.NewRequest("POST", "/indexes", reqBody)
+func (s *IndexesService) Create(ctx context.Context, reqBody *models.IndexCreateRequest) (*models.Index, error) {
+	req, err := s.Client.NewRequest(ctx, "POST", "/indexes", reqBody)
 	if err != nil {
 		return nil, err
 	}
@@ -54,9 +56,9 @@ func (s *IndexesService) Create(reqBody *models.IndexCreateRequest) (*models.Ind
 	return &index, nil
 }
 
-func (s *IndexesService) Retrieve(id string) (*models.Index, error) {
+func (s *IndexesService) Retrieve(ctx context.Context, id string) (*models.Index, error) {
 	path := fmt.Sprintf("/indexes/%s", id)
-	req, err := s.Client.NewRequest("GET", path, nil)
+	req, err := s.Client.NewRequest(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -70,9 +72,9 @@ func (s *IndexesService) Retrieve(id string) (*models.Index, error) {
 	return &index, nil
 }
 
-func (s *IndexesService) Update(indexID string, reqBody *models.IndexUpdateRequest) (*models.Index, error) {
+func (s *IndexesService) Update(ctx context.Context, indexID string, reqBody *models.IndexUpdateRequest) (*models.Index, error) {
 	path := fmt.Sprintf("/indexes/%s", indexID)
-	req, err := s.Client.NewRequest("PUT", path, reqBody)
+	req, err := s.Client.NewRequest(ctx, "PUT", path, reqBody)
 	if err != nil {
 		return nil, err
 	}
@@ -86,9 +88,9 @@ func (s *IndexesService) Update(indexID string, reqBody *models.IndexUpdateReque
 	return &index, nil
 }
 
-func (s *IndexesService) Delete(indexID string) error {
+func (s *IndexesService) Delete(ctx context.Context, indexID string) error {
 	path := fmt.Sprintf("/indexes/%s", indexID)
-	req, err := s.Client.NewRequest("DELETE", path, nil)
+	req, err := s.Client.NewRequest(ctx, "DELETE", path, nil)
 	if err != nil {
 		return err
 	}
@@ -98,7 +100,7 @@ func (s *IndexesService) Delete(indexID string) error {
 }
 
 // Video management within indexes
-func (s *IndexesService) ListVideos(indexID string, filters map[string]string) ([]models.Video, error) {
+func (s *IndexesService) ListVideos(ctx context.Context, indexID string, filters map[string]string) ([]models.Video, error) {
 	queryParams := ""
 	for key, value := range filters {
 		if queryParams != "" {
@@ -112,7 +114,7 @@ func (s *IndexesService) ListVideos(indexID string, filters map[string]string) (
 		url += "?" + queryParams
 	}
 
-	req, err := s.Client.NewRequest("GET", url, nil)
+	req, err := s.Client.NewRequest(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -128,9 +130,9 @@ func (s *IndexesService) ListVideos(indexID string, filters map[string]string) (
 	return response.Data, nil
 }
 
-func (s *IndexesService) RetrieveVideo(indexID, videoID string) (*models.Video, error) {
+func (s *IndexesService) RetrieveVideo(ctx context.Context, indexID, videoID string) (*models.Video, error) {
 	path := fmt.Sprintf("/indexes/%s/videos/%s", indexID, videoID)
-	req, err := s.Client.NewRequest("GET", path, nil)
+	req, err := s.Client.NewRequest(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -144,9 +146,9 @@ func (s *IndexesService) RetrieveVideo(indexID, videoID string) (*models.Video, 
 	return &video, nil
 }
 
-func (s *IndexesService) UpdateVideo(indexID, videoID string, reqBody *models.VideoUpdateRequest) (*models.Video, error) {
+func (s *IndexesService) UpdateVideo(ctx context.Context, indexID, videoID string, reqBody *models.VideoUpdateRequest) (*models.Video, error) {
 	path := fmt.Sprintf("/indexes/%s/videos/%s", indexID, videoID)
-	req, err := s.Client.NewRequest("PUT", path, reqBody)
+	req, err := s.Client.NewRequest(ctx, "PUT", path, reqBody)
 	if err != nil {
 		return nil, err
 	}
@@ -160,9 +162,9 @@ func (s *IndexesService) UpdateVideo(indexID, videoID string, reqBody *models.Vi
 	return &video, nil
 }
 
-func (s *IndexesService) DeleteVideo(indexID, videoID string) error {
+func (s *IndexesService) DeleteVideo(ctx context.Context, indexID, videoID string) error {
 	path := fmt.Sprintf("/indexes/%s/videos/%s", indexID, videoID)
-	req, err := s.Client.NewRequest("DELETE", path, nil)
+	req, err := s.Client.NewRequest(ctx, "DELETE", path, nil)
 	if err != nil {
 		return err
 	}

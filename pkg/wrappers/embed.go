@@ -1,6 +1,8 @@
 package wrappers
 
 import (
+	"context"
+
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/errors"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/models"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/services"
@@ -79,7 +81,7 @@ type EmbedWrapperRequest struct {
 //	    ModelName: "Marengo-retrieval-2.7",
 //	    AudioFile: "./audio/sample.mp3",
 //	})
-func (ew *EmbedWrapper) Create(request *EmbedWrapperRequest) (*models.EmbedResponse, error) {
+func (ew *EmbedWrapper) Create(ctx context.Context, request *EmbedWrapperRequest) (*models.EmbedResponse, error) {
 	// Convert to the base service request format
 	baseRequest := &models.EmbedRequest{
 		ModelName: request.ModelName,
@@ -94,7 +96,7 @@ func (ew *EmbedWrapper) Create(request *EmbedWrapperRequest) (*models.EmbedRespo
 	}
 
 	// Use the existing Create method from the base service
-	result, err := ew.service.Create(baseRequest)
+	result, err := ew.service.Create(ctx, baseRequest)
 	if err != nil {
 		return nil, errors.NewServiceError("Embed", "embedding creation failed: "+err.Error())
 	}
@@ -103,12 +105,12 @@ func (ew *EmbedWrapper) Create(request *EmbedWrapperRequest) (*models.EmbedRespo
 }
 
 // CreateVideoEmbedding is a convenience method for video embeddings
-func (ew *EmbedWrapper) CreateVideoEmbedding(modelName, videoURL string) (*models.EmbedResponse, error) {
+func (ew *EmbedWrapper) CreateVideoEmbedding(ctx context.Context, modelName, videoURL string) (*models.EmbedResponse, error) {
 	request := &EmbedWrapperRequest{
 		ModelName: modelName,
 		VideoURL:  videoURL,
 	}
-	return ew.Create(request)
+	return ew.Create(ctx, request)
 }
 
 // CreateTextEmbedding is a convenience method for generating text embeddings.
@@ -132,28 +134,28 @@ func (ew *EmbedWrapper) CreateVideoEmbedding(modelName, videoURL string) (*model
 //	    log.Fatal(err)
 //	}
 //	fmt.Printf("Generated %d-dimensional embedding\n", len(embedding.Embeddings))
-func (ew *EmbedWrapper) CreateTextEmbedding(modelName, text string) (*models.EmbedResponse, error) {
+func (ew *EmbedWrapper) CreateTextEmbedding(ctx context.Context, modelName, text string) (*models.EmbedResponse, error) {
 	request := &EmbedWrapperRequest{
 		ModelName: modelName,
 		Text:      text,
 	}
-	return ew.Create(request)
+	return ew.Create(ctx, request)
 }
 
 // CreateImageEmbedding is a convenience method for image embeddings
-func (ew *EmbedWrapper) CreateImageEmbedding(modelName, imageURL string) (*models.EmbedResponse, error) {
+func (ew *EmbedWrapper) CreateImageEmbedding(ctx context.Context, modelName, imageURL string) (*models.EmbedResponse, error) {
 	request := &EmbedWrapperRequest{
 		ModelName: modelName,
 		ImageURL:  imageURL,
 	}
-	return ew.Create(request)
+	return ew.Create(ctx, request)
 }
 
 // CreateAudioEmbedding is a convenience method for audio embeddings
-func (ew *EmbedWrapper) CreateAudioEmbedding(modelName, audioURL string) (*models.EmbedResponse, error) {
+func (ew *EmbedWrapper) CreateAudioEmbedding(ctx context.Context, modelName, audioURL string) (*models.EmbedResponse, error) {
 	request := &EmbedWrapperRequest{
 		ModelName: modelName,
 		AudioURL:  audioURL,
 	}
-	return ew.Create(request)
+	return ew.Create(ctx, request)
 }

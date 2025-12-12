@@ -1,6 +1,7 @@
 package wrappers
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -43,8 +44,8 @@ func NewTasksWrapper(service *services.TasksService) *TasksWrapper {
 //	    IndexID:  "your_index_id",
 //	    VideoURL: "https://example.com/video.mp4",
 //	})
-func (tw *TasksWrapper) Create(request *models.TasksCreateRequest) (*models.Task, error) {
-	return tw.service.Create(request)
+func (tw *TasksWrapper) Create(ctx context.Context, request *models.TasksCreateRequest) (*models.Task, error) {
+	return tw.service.Create(ctx, request)
 }
 
 // List retrieves tasks with optional filtering by status, index ID, or other criteria.
@@ -67,8 +68,8 @@ func (tw *TasksWrapper) Create(request *models.TasksCreateRequest) (*models.Task
 //	tasks, err := client.Tasks.List(map[string]string{
 //	    "index_id": "your_index_id",
 //	})
-func (tw *TasksWrapper) List(filters map[string]string) ([]models.Task, error) {
-	return tw.service.List(filters)
+func (tw *TasksWrapper) List(ctx context.Context, filters map[string]string) ([]models.Task, error) {
+	return tw.service.List(ctx, filters)
 }
 
 // Retrieve gets detailed information about a specific task by its ID.
@@ -87,8 +88,8 @@ func (tw *TasksWrapper) List(filters map[string]string) ([]models.Task, error) {
 //	    log.Fatal(err)
 //	}
 //	fmt.Printf("Task status: %s\n", task.Status)
-func (tw *TasksWrapper) Retrieve(taskID string) (*models.Task, error) {
-	return tw.service.Retrieve(taskID)
+func (tw *TasksWrapper) Retrieve(ctx context.Context, taskID string) (*models.Task, error) {
+	return tw.service.Retrieve(ctx, taskID)
 }
 
 // CreateBulkRequest represents a request for creating multiple video indexing tasks simultaneously.
@@ -134,7 +135,7 @@ type CreateBulkRequest struct {
 //	    EnableVideoStream: true,
 //	})
 //	fmt.Printf("Created %d tasks\n", len(tasks))
-func (tw *TasksWrapper) CreateBulk(request *CreateBulkRequest) ([]models.Task, error) {
+func (tw *TasksWrapper) CreateBulk(ctx context.Context, request *CreateBulkRequest) ([]models.Task, error) {
 	if len(request.VideoFiles) == 0 && len(request.VideoURLs) == 0 {
 		return nil, errors.NewValidationError("either VideoFiles or VideoURLs must be provided")
 	}
@@ -150,7 +151,7 @@ func (tw *TasksWrapper) CreateBulk(request *CreateBulkRequest) ([]models.Task, e
 				EnableVideoStream: request.EnableVideoStream,
 			}
 
-			task, err := tw.service.Create(taskRequest)
+			task, err := tw.service.Create(ctx, taskRequest)
 			if err != nil {
 				fmt.Printf("Error processing file %s: %v\n", videoFile, err)
 				continue
@@ -168,7 +169,7 @@ func (tw *TasksWrapper) CreateBulk(request *CreateBulkRequest) ([]models.Task, e
 				EnableVideoStream: request.EnableVideoStream,
 			}
 
-			task, err := tw.service.Create(taskRequest)
+			task, err := tw.service.Create(ctx, taskRequest)
 			if err != nil {
 				fmt.Printf("Error processing URL %s: %v\n", videoURL, err)
 				continue
@@ -211,7 +212,7 @@ type WaitForDoneOptions struct {
 //	        return nil
 //	    },
 //	})
-func (tw *TasksWrapper) WaitForDone(taskID string, options *WaitForDoneOptions) (*models.Task, error) {
+func (tw *TasksWrapper) WaitForDone(ctx context.Context, taskID string, options *WaitForDoneOptions) (*models.Task, error) {
 	if options == nil {
 		options = &WaitForDoneOptions{}
 	}
@@ -224,7 +225,7 @@ func (tw *TasksWrapper) WaitForDone(taskID string, options *WaitForDoneOptions) 
 	callback := options.Callback
 
 	// Get initial task
-	task, err := tw.service.Retrieve(taskID)
+	task, err := tw.service.Retrieve(ctx, taskID)
 	if err != nil {
 		return nil, errors.NewServiceError("Tasks", "failed to retrieve initial task: "+err.Error())
 	}
@@ -239,7 +240,7 @@ func (tw *TasksWrapper) WaitForDone(taskID string, options *WaitForDoneOptions) 
 	for !doneStatuses[task.Status] {
 		time.Sleep(sleepInterval)
 
-		task, err = tw.service.Retrieve(taskID)
+		task, err = tw.service.Retrieve(ctx, taskID)
 		if err != nil {
 			fmt.Printf("Retrieving task failed: %v. Retrying...\n", err)
 			continue
@@ -276,9 +277,9 @@ func (tw *TasksWrapper) WaitForDone(taskID string, options *WaitForDoneOptions) 
 //	} else {
 //	    fmt.Println("Task completed successfully!")
 //	}
-func (tw *TasksWrapper) WaitForCompletion(taskID string, callback func(string)) error {
+func (tw *TasksWrapper) WaitForCompletion(ctx context.Context, taskID string, callback func(string)) error {
 	// Get initial task
-	task, err := tw.service.Retrieve(taskID)
+	task, err := tw.service.Retrieve(ctx, taskID)
 	if err != nil {
 		return errors.NewServiceError("Tasks", "failed to retrieve initial task: "+err.Error())
 	}
@@ -293,7 +294,7 @@ func (tw *TasksWrapper) WaitForCompletion(taskID string, callback func(string)) 
 	for !doneStatuses[task.Status] {
 		time.Sleep(5 * time.Second)
 
-		task, err = tw.service.Retrieve(taskID)
+		task, err = tw.service.Retrieve(ctx, taskID)
 		if err != nil {
 			return errors.NewServiceError("Tasks", "retrieving task failed: "+err.Error())
 		}
@@ -327,9 +328,9 @@ func (tw *TasksWrapper) WaitForCompletion(taskID string, callback func(string)) 
 //	        fmt.Printf("Status: %s\n", status)
 //	    },
 //	)
-func (tw *TasksWrapper) WaitForCompletionWithTimeout(taskID string, timeout time.Duration, callback func(string)) error {
+func (tw *TasksWrapper) WaitForCompletionWithTimeout(ctx context.Context, taskID string, timeout time.Duration, callback func(string)) error {
 	// Get initial task
-	task, err := tw.service.Retrieve(taskID)
+	task, err := tw.service.Retrieve(ctx, taskID)
 	if err != nil {
 		return errors.NewServiceError("Tasks", "failed to retrieve initial task: "+err.Error())
 	}
@@ -351,7 +352,7 @@ func (tw *TasksWrapper) WaitForCompletionWithTimeout(taskID string, timeout time
 
 		time.Sleep(5 * time.Second)
 
-		task, err = tw.service.Retrieve(taskID)
+		task, err = tw.service.Retrieve(ctx, taskID)
 		if err != nil {
 			return errors.NewServiceError("Tasks", "retrieving task failed: "+err.Error())
 		}

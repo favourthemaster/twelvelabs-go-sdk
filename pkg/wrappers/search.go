@@ -1,6 +1,8 @@
 package wrappers
 
 import (
+	"context"
+
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/errors"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/models"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/services"
@@ -55,9 +57,9 @@ func NewSearchWrapper(service *services.SearchService) *SearchWrapper {
 //	    QueryMediaURL:  "https://example.com/image.jpg",
 //	    SearchOptions:  []string{"visual"},
 //	})
-func (sw *SearchWrapper) Query(request *models.SearchQueryRequest) (*models.SearchResponse, error) {
+func (sw *SearchWrapper) Query(ctx context.Context, request *models.SearchQueryRequest) (*models.SearchResponse, error) {
 	// Use the existing SearchQueryRequest from search service
-	results, err := sw.service.Query(request)
+	results, err := sw.service.Query(ctx, request)
 	if err != nil {
 		return nil, errors.NewServiceError("Search", "search query failed: "+err.Error())
 	}
@@ -67,8 +69,8 @@ func (sw *SearchWrapper) Query(request *models.SearchQueryRequest) (*models.Sear
 
 // Create performs a search and returns the search ID for paginated result retrieval.
 // This is an alias for Query() to maintain API compatibility.
-func (sw *SearchWrapper) Create(request *models.SearchQueryRequest) (*models.SearchResponse, error) {
-	return sw.Query(request)
+func (sw *SearchWrapper) Create(ctx context.Context, request *models.SearchQueryRequest) (*models.SearchResponse, error) {
+	return sw.Query(ctx, request)
 }
 
 // Retrieve gets paginated search results using a page token from a previous search response.
@@ -90,8 +92,8 @@ func (sw *SearchWrapper) Create(request *models.SearchQueryRequest) (*models.Sea
 //	if response.PageInfo.NextPageToken != "" {
 //	    nextPage, err := client.Search.Retrieve(response.PageInfo.NextPageToken)
 //	}
-func (sw *SearchWrapper) Retrieve(pageToken string) (*models.SearchResponse, error) {
-	return sw.service.Retrieve(pageToken)
+func (sw *SearchWrapper) Retrieve(ctx context.Context, pageToken string) (*models.SearchResponse, error) {
+	return sw.service.Retrieve(ctx, pageToken)
 }
 
 // SearchByText is a convenience method for text-based semantic searches.
@@ -116,13 +118,13 @@ func (sw *SearchWrapper) Retrieve(pageToken string) (*models.SearchResponse, err
 //	for _, result := range results.Data {
 //	    fmt.Printf("Found match in video %s at %fs\n", result.VideoID, result.Start)
 //	}
-func (sw *SearchWrapper) SearchByText(indexID, queryText string, options []string) (*models.SearchResponse, error) {
+func (sw *SearchWrapper) SearchByText(ctx context.Context, indexID, queryText string, options []string) (*models.SearchResponse, error) {
 	request := &models.SearchRequest{
 		IndexID:       indexID,
 		QueryText:     queryText,
 		SearchOptions: options,
 	}
-	return sw.Search(request)
+	return sw.Search(ctx, request)
 }
 
 // SearchByImage is a convenience method for image-based visual searches.
@@ -147,14 +149,14 @@ func (sw *SearchWrapper) SearchByText(indexID, queryText string, options []strin
 //	for _, result := range results.Data {
 //	    fmt.Printf("Visual match: %s (confidence: %.2f)\n", result.VideoID, result.Score)
 //	}
-func (sw *SearchWrapper) SearchByImage(indexID, imageURL string, options []string) (*models.SearchResponse, error) {
+func (sw *SearchWrapper) SearchByImage(ctx context.Context, indexID, imageURL string, options []string) (*models.SearchResponse, error) {
 	request := &models.SearchRequest{
 		IndexID:        indexID,
 		QueryMediaType: "image",
 		QueryMediaURL:  imageURL,
 		SearchOptions:  options,
 	}
-	return sw.Search(request)
+	return sw.Search(ctx, request)
 }
 
 // Search performs a search using the legacy SearchRequest format.
@@ -166,9 +168,9 @@ func (sw *SearchWrapper) SearchByImage(indexID, imageURL string, options []strin
 // Returns:
 //   - SearchResponse with search results
 //   - error if the search fails
-func (sw *SearchWrapper) Search(request *models.SearchRequest) (*models.SearchResponse, error) {
+func (sw *SearchWrapper) Search(ctx context.Context, request *models.SearchRequest) (*models.SearchResponse, error) {
 	// Use the existing Search method from the base service
-	results, err := sw.service.Search(request)
+	results, err := sw.service.Search(ctx, request)
 	if err != nil {
 		return nil, errors.NewServiceError("Search", "search failed: "+err.Error())
 	}

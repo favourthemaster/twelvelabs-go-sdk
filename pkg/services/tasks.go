@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -15,7 +16,7 @@ type TasksService struct {
 	Client ClientInterface
 }
 
-func (s *TasksService) List(filters map[string]string) ([]models.Task, error) {
+func (s *TasksService) List(ctx context.Context, filters map[string]string) ([]models.Task, error) {
 	queryParams := ""
 	for key, value := range filters {
 		if queryParams != "" {
@@ -29,7 +30,7 @@ func (s *TasksService) List(filters map[string]string) ([]models.Task, error) {
 		url += "?" + queryParams
 	}
 
-	req, err := s.Client.NewRequest("GET", url, nil)
+	req, err := s.Client.NewRequest(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +46,7 @@ func (s *TasksService) List(filters map[string]string) ([]models.Task, error) {
 	return response.Data, nil
 }
 
-func (s *TasksService) Create(reqBody *models.TasksCreateRequest) (*models.Task, error) {
+func (s *TasksService) Create(ctx context.Context, reqBody *models.TasksCreateRequest) (*models.Task, error) {
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
@@ -96,7 +97,7 @@ func (s *TasksService) Create(reqBody *models.TasksCreateRequest) (*models.Task,
 		return nil, err
 	}
 
-	req, err := s.Client.NewRequest("POST", "/tasks", &b)
+	req, err := s.Client.NewRequest(ctx, "POST", "/tasks", &b)
 	if err != nil {
 		return nil, err
 	}
@@ -111,9 +112,9 @@ func (s *TasksService) Create(reqBody *models.TasksCreateRequest) (*models.Task,
 	return &task, nil
 }
 
-func (s *TasksService) Retrieve(id string) (*models.Task, error) {
+func (s *TasksService) Retrieve(ctx context.Context, id string) (*models.Task, error) {
 	path := fmt.Sprintf("/tasks/%s", id)
-	req, err := s.Client.NewRequest("GET", path, nil)
+	req, err := s.Client.NewRequest(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -127,9 +128,9 @@ func (s *TasksService) Retrieve(id string) (*models.Task, error) {
 	return &task, nil
 }
 
-func (s *TasksService) Delete(id string) error {
+func (s *TasksService) Delete(ctx context.Context, id string) error {
 	path := fmt.Sprintf("/tasks/%s", id)
-	req, err := s.Client.NewRequest("DELETE", path, nil)
+	req, err := s.Client.NewRequest(ctx, "DELETE", path, nil)
 	if err != nil {
 		return err
 	}
@@ -138,9 +139,16 @@ func (s *TasksService) Delete(id string) error {
 	return err
 }
 
-func (s *TasksService) WaitForDone(id string, interval time.Duration, callback func(*models.Task)) (*models.Task, error) {
+func (s *TasksService) WaitForDone(ctx context.Context, id string, interval time.Duration, callback func(*models.Task)) (*models.Task, error) {
 	for {
-		task, err := s.Retrieve(id)
+		// Check for context cancellation
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		task, err := s.Retrieve(ctx, id)
 		if err != nil {
 			return nil, err
 		}

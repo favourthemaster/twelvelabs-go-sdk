@@ -19,24 +19,25 @@
 //	}
 //
 //	// Analyze a video
-//	response, err := client.Analyze.Analyze(&models.AnalyzeRequest{
+//	response, err := client.Analyze.Analyze(context.Background(), &models.AnalyzeRequest{
 //	    VideoID: "video-id",
 //	    Prompt:  "What objects are visible in this video?",
 //	})
 //
 //	// Search for content
-//	results, err := client.Search.SearchByText("index-id", "person running", []string{"visual"})
+//	results, err := client.Search.SearchByText(context.Background(), "index-id", "person running", []string{"visual"})
 //
 //	// Generate embeddings
-//	embedding, err := client.Embed.CreateTextEmbedding("Marengo-retrieval-2.7", "sample text")
+//	embedding, err := client.Embed.CreateTextEmbedding(context.Background(), "Marengo-retrieval-2.7", "sample text")
 package twelvelabs
 
 import (
+	"os"
+	"time"
+
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/client"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/errors"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/wrappers"
-	"os"
-	"time"
 )
 
 // TwelveLabs is the main client that provides access to all TwelveLabs API services.

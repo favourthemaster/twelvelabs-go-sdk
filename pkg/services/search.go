@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -14,7 +15,7 @@ type SearchService struct {
 	Client ClientInterface
 }
 
-func (s *SearchService) Query(reqBody *models.SearchQueryRequest) (*models.SearchResponse, error) {
+func (s *SearchService) Query(ctx context.Context, reqBody *models.SearchQueryRequest) (*models.SearchResponse, error) {
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
@@ -77,7 +78,7 @@ func (s *SearchService) Query(reqBody *models.SearchQueryRequest) (*models.Searc
 		return nil, err
 	}
 
-	req, err := s.Client.NewRequest("POST", "/search", &b)
+	req, err := s.Client.NewRequest(ctx, "POST", "/search", &b)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +107,7 @@ func (s *SearchService) Query(reqBody *models.SearchQueryRequest) (*models.Searc
 	return &response, nil // Return the complete response, not just response.Data
 }
 
-func (s *SearchService) Search(request *models.SearchRequest) (*models.SearchResponse, error) {
+func (s *SearchService) Search(ctx context.Context, request *models.SearchRequest) (*models.SearchResponse, error) {
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
@@ -176,7 +177,7 @@ func (s *SearchService) Search(request *models.SearchRequest) (*models.SearchRes
 		return nil, err
 	}
 
-	req, err := s.Client.NewRequest("POST", "/search", &b)
+	req, err := s.Client.NewRequest(ctx, "POST", "/search", &b)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +192,7 @@ func (s *SearchService) Search(request *models.SearchRequest) (*models.SearchRes
 	return &response, nil
 }
 
-func (s *SearchService) Retrieve(pageToken string) (*models.SearchResponse, error) {
+func (s *SearchService) Retrieve(ctx context.Context, pageToken string) (*models.SearchResponse, error) {
 	queryParams := ""
 	if pageToken != "" {
 		queryParams += fmt.Sprintf("page_token=%s", pageToken)
@@ -202,7 +203,7 @@ func (s *SearchService) Retrieve(pageToken string) (*models.SearchResponse, erro
 		url += "?" + queryParams
 	}
 
-	req, err := s.Client.NewRequest("GET", url, nil)
+	req, err := s.Client.NewRequest(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err
 	}

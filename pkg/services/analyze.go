@@ -2,11 +2,13 @@ package services
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/errors"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/models"
-	"io"
 )
 
 type AnalyzeService struct {
@@ -14,8 +16,8 @@ type AnalyzeService struct {
 }
 
 // Analyze performs video analysis with the given request parameters
-func (s *AnalyzeService) Analyze(reqBody *models.AnalyzeRequest) (*models.AnalyzeResponse, error) {
-	req, err := s.Client.NewRequest("POST", "/analyze", reqBody)
+func (s *AnalyzeService) Analyze(ctx context.Context, reqBody *models.AnalyzeRequest) (*models.AnalyzeResponse, error) {
+	req, err := s.Client.NewRequest(ctx, "POST", "/analyze", reqBody)
 	if err != nil {
 		return nil, errors.NewRequestError("failed to create analyze request: " + err.Error())
 	}
@@ -30,13 +32,13 @@ func (s *AnalyzeService) Analyze(reqBody *models.AnalyzeRequest) (*models.Analyz
 }
 
 // AnalyzeStream performs streaming video analysis
-func (s *AnalyzeService) AnalyzeStream(reqBody *models.AnalyzeRequest, callback func(*models.AnalyzeStreamResponse) error) error {
+func (s *AnalyzeService) AnalyzeStream(ctx context.Context, reqBody *models.AnalyzeRequest, callback func(*models.AnalyzeStreamResponse) error) error {
 	// Set stream to true for streaming requests
 	streamReq := *reqBody
 	streamReq.Stream = true
 
 	// Handle JSON request for video_id or video_url
-	req, err := s.Client.NewRequest("POST", "/analyze", &streamReq)
+	req, err := s.Client.NewRequest(ctx, "POST", "/analyze", &streamReq)
 	if err != nil {
 		return errors.NewRequestError("failed to create analyze stream request: " + err.Error())
 	}
@@ -90,8 +92,8 @@ func (s *AnalyzeService) processStreamResponse(body io.Reader, callback func(*mo
 	return nil
 }
 
-func (s *AnalyzeService) GenerateGist(reqBody *models.GenerateGistRequest) (*models.GenerateGistResponse, error) {
-	req, err := s.Client.NewRequest("POST", "/gist", reqBody)
+func (s *AnalyzeService) GenerateGist(ctx context.Context, reqBody *models.GenerateGistRequest) (*models.GenerateGistResponse, error) {
+	req, err := s.Client.NewRequest(ctx, "POST", "/gist", reqBody)
 	if err != nil {
 		return nil, errors.NewRequestError("failed to create gist request: " + err.Error())
 	}
@@ -105,8 +107,8 @@ func (s *AnalyzeService) GenerateGist(reqBody *models.GenerateGistRequest) (*mod
 	return &response, nil
 }
 
-func (s *AnalyzeService) GenerateSummary(reqBody *models.GenerateSummaryRequest) (*models.GenerateSummaryResponse, error) {
-	req, err := s.Client.NewRequest("POST", "/summarize", reqBody)
+func (s *AnalyzeService) GenerateSummary(ctx context.Context, reqBody *models.GenerateSummaryRequest) (*models.GenerateSummaryResponse, error) {
+	req, err := s.Client.NewRequest(ctx, "POST", "/summarize", reqBody)
 	if err != nil {
 		return nil, errors.NewRequestError("failed to create summarize request: " + err.Error())
 	}

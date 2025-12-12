@@ -1,6 +1,7 @@
 package main
 
 import (
+"context"
 	"fmt"
 	"log"
 
@@ -25,7 +26,7 @@ func main() {
 
 	// 1. List all videos in an index
 	fmt.Println("\n📋 Listing all videos in index...")
-	allVideos, err := client.Indexes.Videos.List(indexID, map[string]string{})
+	allVideos, err := client.Indexes.Videos.List(context.Background(), indexID, map[string]string{})
 	if err != nil {
 		log.Printf("Error listing videos: %v", err)
 		return
@@ -49,7 +50,7 @@ func main() {
 
 	// 2. List videos with pagination
 	fmt.Println("\n📄 Listing videos with pagination...")
-	paginatedVideos, err := client.Indexes.Videos.List(indexID, map[string]string{
+	paginatedVideos, err := client.Indexes.Videos.List(context.Background(), indexID, map[string]string{
 		"page_limit": "5",
 		"sort_by":    "created_at",
 		"sort_order": "desc",
@@ -65,7 +66,7 @@ func main() {
 		firstVideo := allVideos[0]
 		fmt.Printf("\n🔍 Getting detailed info for video %s...\n", firstVideo.ID)
 
-		videoDetails, err := client.Indexes.Videos.Retrieve(indexID, firstVideo.ID)
+		videoDetails, err := client.Indexes.Videos.Retrieve(context.Background(), indexID, firstVideo.ID)
 		if err != nil {
 			log.Printf("Error retrieving video details: %v", err)
 		} else {
@@ -83,7 +84,7 @@ func main() {
 		firstVideo := allVideos[0]
 		fmt.Printf("\n📝 Updating metadata for video %s...\n", firstVideo.ID)
 
-		updatedVideo, err := client.Indexes.Videos.Update(indexID, firstVideo.ID, &models.VideoUpdateRequest{
+		updatedVideo, err := client.Indexes.Videos.Update(context.Background(), indexID, firstVideo.ID, &models.VideoUpdateRequest{
 			UserMetadata: map[string]string{
 				"title":       "Updated Video Title",
 				"description": "This video has been updated with new metadata",
@@ -124,7 +125,7 @@ func main() {
 			metadata["length_category"] = "short"
 		}
 
-		updatedVideo, err := client.Indexes.Videos.Update(indexID, video.ID, &models.VideoUpdateRequest{
+		updatedVideo, err := client.Indexes.Videos.Update(context.Background(), indexID, video.ID, &models.VideoUpdateRequest{
 			UserMetadata: metadata,
 		})
 		if err != nil {
@@ -187,7 +188,7 @@ func main() {
 	// 8. Video deletion (commented out for safety)
 	fmt.Println("\n⚠️ Video deletion example (disabled for safety)...")
 	fmt.Println("   To delete a video, uncomment the following code:")
-	fmt.Println("   // err := client.Indexes.Videos.Delete(indexID, videoID)")
+	fmt.Println("   // err := client.Indexes.Videos.Delete(context.Background(), indexID, videoID)")
 	fmt.Println("   // if err != nil {")
 	fmt.Println("   //     log.Printf(\"Error deleting video: %v\", err)")
 	fmt.Println("   // } else {")
@@ -199,7 +200,7 @@ func main() {
 		if len(allVideos) > 0 {
 			// Only delete if you're sure!
 			videoToDelete := allVideos[len(allVideos)-1] // Delete the last video
-			err := client.Indexes.Videos.Delete(indexID, videoToDelete.ID)
+			err := client.Indexes.Videos.Delete(context.Background(), indexID, videoToDelete.ID)
 			if err != nil {
 				log.Printf("Error deleting video: %v", err)
 			} else {

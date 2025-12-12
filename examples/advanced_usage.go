@@ -1,6 +1,7 @@
 package main
 
 import (
+"context"
 	"fmt"
 	"log"
 	"time"
@@ -30,7 +31,7 @@ func main() {
 		"https://example.com/your-video-url.mp4",
 	}
 
-	tasks, err := client.Tasks.CreateBulk(&wrappers.CreateBulkRequest{
+	tasks, err := client.Tasks.CreateBulk(context.Background(), &wrappers.CreateBulkRequest{
 		IndexID:           indexID,
 		VideoURLs:         videoURLs,
 		EnableVideoStream: true,
@@ -45,7 +46,7 @@ func main() {
 	if len(tasks) > 0 {
 		fmt.Println("\n⏳ Waiting for first task to complete...")
 
-		completedTask, err := client.Tasks.WaitForDone(tasks[0].ID, &wrappers.WaitForDoneOptions{
+		completedTask, err := client.Tasks.WaitForDone(context.Background(), tasks[0].ID, &wrappers.WaitForDoneOptions{
 			SleepInterval: 10 * time.Second,
 			Callback: func(task *models.Task) error {
 				fmt.Printf("   📊 Task %s status: %s\n", task.ID, task.Status)
@@ -64,7 +65,7 @@ func main() {
 
 	// Text search
 	fmt.Println("   🔤 Text search:")
-	textResults, err := client.Search.SearchByText(indexID, "your search query here", []string{"visual"})
+	textResults, err := client.Search.SearchByText(context.Background(), indexID, "your search query here", []string{"visual"})
 	if err != nil {
 		log.Printf("Error in text search: %v", err)
 	} else {
@@ -73,7 +74,7 @@ func main() {
 
 	// Image search
 	fmt.Println("   🖼️  Image search:")
-	imageResults, err := client.Search.SearchByImage(indexID, "https://example.com/your-image-url.jpg", []string{"visual"})
+	imageResults, err := client.Search.SearchByImage(context.Background(), indexID, "https://example.com/your-image-url.jpg", []string{"visual"})
 	if err != nil {
 		log.Printf("Error in image search: %v", err)
 	} else {
@@ -82,7 +83,7 @@ func main() {
 
 	// Advanced search with custom parameters
 	fmt.Println("   ⚙️  Advanced search with custom parameters:")
-	advancedResults, err := client.Search.Query(&models.SearchQueryRequest{
+	advancedResults, err := client.Search.Query(context.Background(), &models.SearchQueryRequest{
 		IndexID:       indexID,
 		QueryText:     "your advanced query here",
 		SearchOptions: []string{"visual"},
@@ -97,7 +98,7 @@ func main() {
 	fmt.Println("\n🎬 Video Management Examples...")
 
 	// List videos in index
-	videos, err := client.Indexes.Videos.List(indexID, map[string]string{
+	videos, err := client.Indexes.Videos.List(context.Background(), indexID, map[string]string{
 		"page_limit": "10",
 	})
 	if err != nil {
@@ -108,7 +109,7 @@ func main() {
 		if len(videos) > 0 {
 			// Update video metadata
 			fmt.Println("   📝 Updating video metadata...")
-			updatedVideo, err := client.Indexes.Videos.Update(indexID, videos[0].ID, &models.VideoUpdateRequest{
+			updatedVideo, err := client.Indexes.Videos.Update(context.Background(), indexID, videos[0].ID, &models.VideoUpdateRequest{
 				UserMetadata: map[string]string{
 					"category":    "nature",
 					"description": "Beautiful outdoor scene",
@@ -127,7 +128,7 @@ func main() {
 	fmt.Println("\n🧠 Advanced Embedding Examples...")
 
 	// Text embedding
-	textEmbed, err := client.Embed.CreateTextEmbedding("Marengo-retrieval-2.7", "your text content here")
+	textEmbed, err := client.Embed.CreateTextEmbedding(context.Background(), "Marengo-retrieval-2.7", "your text content here")
 	if err != nil {
 		log.Printf("Error creating text embedding: %v", err)
 	} else {
@@ -135,7 +136,7 @@ func main() {
 	}
 
 	// Image embedding
-	_, err = client.Embed.CreateImageEmbedding("Marengo-retrieval-2.7", "https://example.com/your-image-url.jpg")
+	_, err = client.Embed.CreateImageEmbedding(context.Background(), "Marengo-retrieval-2.7", "https://example.com/your-image-url.jpg")
 	if err != nil {
 		log.Printf("Error creating image embedding: %v", err)
 	} else {
@@ -143,7 +144,7 @@ func main() {
 	}
 
 	// Generic embedding with custom request
-	_, err = client.Embed.Create(&wrappers.EmbedWrapperRequest{
+	_, err = client.Embed.Create(context.Background(), &wrappers.EmbedWrapperRequest{
 		ModelName: "Marengo-retrieval-2.7",
 		Text:      "your custom text content here",
 	})
@@ -157,7 +158,7 @@ func main() {
 	fmt.Println("\n⚠️  Error Handling Examples...")
 
 	// Demonstrate proper error handling
-	_, err = client.Indexes.Retrieve("non-existent-index-id")
+	_, err = client.Indexes.Retrieve(context.Background(), "non-existent-index-id")
 	if err != nil {
 		fmt.Printf("✅ Properly caught error: %v\n", err)
 	}

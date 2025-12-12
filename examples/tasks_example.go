@@ -1,6 +1,7 @@
 package main
 
 import (
+"context"
 	"fmt"
 	"log"
 	"time"
@@ -27,7 +28,7 @@ func main() {
 
 	//// 1. Create a single task with local file
 	//fmt.Println("\n📁 Creating task with local video file...")
-	//singleTask, err := client.Tasks.Create(&models.TasksCreateRequest{
+	//singleTask, err := client.Tasks.Create(context.Background(), &models.TasksCreateRequest{
 	//	IndexID:           indexID,
 	//	VideoFile:         "./assets/example.mp4",
 	//	EnableVideoStream: true,
@@ -45,7 +46,7 @@ func main() {
 
 	// 2. Create a single task with URL
 	fmt.Println("\n🌐 Creating task with video URL...")
-	urlTask, err := client.Tasks.Create(&models.TasksCreateRequest{
+	urlTask, err := client.Tasks.Create(context.Background(), &models.TasksCreateRequest{
 		IndexID:             indexID,
 		VideoURL:            "https://example.com/your-video-url.mp4",
 		VideoStartOffsetSec: 10,  // Start processing from 10 seconds
@@ -60,7 +61,7 @@ func main() {
 
 	// 3. Bulk task creation with mixed sources
 	fmt.Println("\n📦 Creating bulk tasks with mixed sources...")
-	bulkTasks, err := client.Tasks.CreateBulk(&wrappers.CreateBulkRequest{
+	bulkTasks, err := client.Tasks.CreateBulk(context.Background(), &wrappers.CreateBulkRequest{
 		IndexID: indexID,
 		VideoURLs: []string{
 			"https://example.com/your-first-video.mp4",
@@ -84,7 +85,7 @@ func main() {
 	fmt.Println("\n📋 Listing and filtering tasks...")
 
 	// List all tasks for the index
-	allTasks, err := client.Tasks.List(map[string]string{
+	allTasks, err := client.Tasks.List(context.Background(), map[string]string{
 		"index_id": indexID,
 	})
 	if err != nil {
@@ -94,7 +95,7 @@ func main() {
 	}
 
 	// List only ready tasks
-	readyTasks, err := client.Tasks.List(map[string]string{
+	readyTasks, err := client.Tasks.List(context.Background(), map[string]string{
 		"index_id": indexID,
 		"status":   "ready",
 	})
@@ -109,7 +110,7 @@ func main() {
 		fmt.Printf("\n⏳ Waiting for task %s to complete...\n", bulkTasks[0].ID)
 
 		startTime := time.Now()
-		completedTask, err := client.Tasks.WaitForDone(bulkTasks[0].ID, &wrappers.WaitForDoneOptions{
+		completedTask, err := client.Tasks.WaitForDone(context.Background(), bulkTasks[0].ID, &wrappers.WaitForDoneOptions{
 			SleepInterval: 5 * time.Second,
 			Callback: func(task *models.Task) error {
 				elapsed := time.Since(startTime)
@@ -143,7 +144,7 @@ func main() {
 		// Start waiting for each task in a goroutine
 		for _, task := range tasksToWait {
 			go func(taskID string) {
-				completedTask, err := client.Tasks.WaitForDone(taskID, &wrappers.WaitForDoneOptions{
+				completedTask, err := client.Tasks.WaitForDone(context.Background(), taskID, &wrappers.WaitForDoneOptions{
 					SleepInterval: 10 * time.Second,
 					Callback: func(t *models.Task) error {
 						fmt.Printf("   🔄 Task %s: %s\n", t.ID, t.Status)
@@ -179,7 +180,7 @@ func main() {
 	// 7. Retrieve specific task details
 	if len(bulkTasks) > 0 {
 		fmt.Printf("\n🔍 Retrieving details for task %s...\n", bulkTasks[0].ID)
-		taskDetails, err := client.Tasks.Retrieve(bulkTasks[0].ID)
+		taskDetails, err := client.Tasks.Retrieve(context.Background(), bulkTasks[0].ID)
 		if err != nil {
 			log.Printf("Error retrieving task: %v", err)
 		} else {

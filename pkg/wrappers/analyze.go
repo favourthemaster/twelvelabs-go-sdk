@@ -3,6 +3,8 @@
 package wrappers
 
 import (
+	"context"
+
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/errors"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/models"
 	"github.com/favourthemaster/twelvelabs-go-sdk/pkg/services"
@@ -41,8 +43,8 @@ func NewAnalyzeWrapper(service *services.AnalyzeService) *AnalyzeWrapper {
 //	    log.Fatal(err)
 //	}
 //	fmt.Println("Analysis:", response.Data)
-func (aw *AnalyzeWrapper) Analyze(request *models.AnalyzeRequest) (*models.AnalyzeResponse, error) {
-	result, err := aw.service.Analyze(request)
+func (aw *AnalyzeWrapper) Analyze(ctx context.Context, request *models.AnalyzeRequest) (*models.AnalyzeResponse, error) {
+	result, err := aw.service.Analyze(ctx, request)
 	if err != nil {
 		return nil, errors.NewServiceError("Analyze", "video analysis failed: "+err.Error())
 	}
@@ -82,8 +84,8 @@ func (aw *AnalyzeWrapper) Analyze(request *models.AnalyzeRequest) (*models.Analy
 //	    }
 //	    return nil
 //	})
-func (aw *AnalyzeWrapper) AnalyzeStream(request *models.AnalyzeRequest, callback func(*models.AnalyzeStreamResponse) error) error {
-	err := aw.service.AnalyzeStream(request, callback)
+func (aw *AnalyzeWrapper) AnalyzeStream(ctx context.Context, request *models.AnalyzeRequest, callback func(*models.AnalyzeStreamResponse) error) error {
+	err := aw.service.AnalyzeStream(ctx, request, callback)
 	if err != nil {
 		return errors.NewServiceError("Analyze", "streaming video analysis failed: "+err.Error())
 	}
@@ -120,8 +122,8 @@ func (aw *AnalyzeWrapper) AnalyzeStream(request *models.AnalyzeRequest, callback
 //	    VideoID: "video_id",
 //	    Type:    "chapter",
 //	})
-func (aw *AnalyzeWrapper) GenerateSummary(request *models.GenerateSummaryRequest) (*models.GenerateSummaryResponse, error) {
-	result, err := aw.service.GenerateSummary(request)
+func (aw *AnalyzeWrapper) GenerateSummary(ctx context.Context, request *models.GenerateSummaryRequest) (*models.GenerateSummaryResponse, error) {
+	result, err := aw.service.GenerateSummary(ctx, request)
 	if err != nil {
 		return nil, errors.NewServiceError("Analyze", "video summary generation failed: "+err.Error())
 	}
@@ -156,8 +158,8 @@ func (aw *AnalyzeWrapper) GenerateSummary(request *models.GenerateSummaryRequest
 //	fmt.Printf("Title: %s\n", gist.Title)
 //	fmt.Printf("Topics: %s\n", gist.Topics)
 //	fmt.Printf("Hashtags: %v\n", gist.Hashtags)
-func (aw *AnalyzeWrapper) GenerateGist(request *models.GenerateGistRequest) (*models.GenerateGistResponse, error) {
-	result, err := aw.service.GenerateGist(request)
+func (aw *AnalyzeWrapper) GenerateGist(ctx context.Context, request *models.GenerateGistRequest) (*models.GenerateGistResponse, error) {
+	result, err := aw.service.GenerateGist(ctx, request)
 	if err != nil {
 		return nil, errors.NewServiceError("Analyze", "video gist generation failed: "+err.Error())
 	}

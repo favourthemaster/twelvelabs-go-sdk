@@ -1,6 +1,7 @@
 package main
 
 import (
+"context"
 	"fmt"
 	"log"
 
@@ -34,7 +35,7 @@ func main() {
 
 	fmt.Println("   Processing multiple text queries...")
 	for i, query := range textQueries {
-		embedding, err := client.Embed.CreateTextEmbedding(modelName, query)
+		embedding, err := client.Embed.CreateTextEmbedding(context.Background(), modelName, query)
 		if err != nil {
 			log.Printf("Error creating text embedding %d: %v", i+1, err)
 			continue
@@ -57,7 +58,7 @@ func main() {
 	}
 
 	for i, imageURL := range imageURLs {
-		embedding, err := client.Embed.CreateImageEmbedding(modelName, imageURL)
+		embedding, err := client.Embed.CreateImageEmbedding(context.Background(), modelName, imageURL)
 		if err != nil {
 			log.Printf("Error creating image embedding %d: %v", i+1, err)
 			continue
@@ -74,7 +75,7 @@ func main() {
 	//fmt.Println("\n📁 Creating embeddings from local files...")
 	//
 	//// Local image embedding
-	//_, err = client.Embed.Create(&wrappers.EmbedWrapperRequest{
+	//_, err = client.Embed.Create(context.Background(), &wrappers.EmbedWrapperRequest{
 	//	ModelName: modelName,
 	//	ImageFile: "./assets/search_sample.png",
 	//})
@@ -85,7 +86,7 @@ func main() {
 	//}
 	//
 	//// Local audio embedding
-	//_, err = client.Embed.Create(&wrappers.EmbedWrapperRequest{
+	//_, err = client.Embed.Create(context.Background(), &wrappers.EmbedWrapperRequest{
 	//	ModelName: modelName,
 	//	AudioFile: "./assets/audio_sample.mp3",
 	//})
@@ -102,7 +103,7 @@ func main() {
 	}
 
 	for i, videoURL := range videoURLs {
-		embedding, err := client.Embed.CreateVideoEmbedding(modelName, videoURL)
+		embedding, err := client.Embed.CreateVideoEmbedding(context.Background(), modelName, videoURL)
 		if err != nil {
 			log.Printf("Error creating video embedding %d: %v", i+1, err)
 			continue
@@ -133,7 +134,7 @@ func main() {
 	}
 
 	for i, audioURL := range audioURLs {
-		_, err := client.Embed.CreateAudioEmbedding(modelName, audioURL)
+		_, err := client.Embed.CreateAudioEmbedding(context.Background(), modelName, audioURL)
 		if err != nil {
 			log.Printf("Error creating audio embedding %d: %v", i+1, err)
 			continue
@@ -157,7 +158,7 @@ func main() {
 	successCount := 0
 
 	for i, request := range batchRequests {
-		_, err := client.Embed.Create(request)
+		_, err := client.Embed.Create(context.Background(), request)
 		if err != nil {
 			log.Printf("   ❌ Batch request %d failed: %v", i+1, err)
 			continue
@@ -190,7 +191,7 @@ func main() {
 	embeddings := make(map[string][]float64)
 
 	for label, text := range concepts {
-		embedding, err := client.Embed.CreateTextEmbedding(modelName, text)
+		embedding, err := client.Embed.CreateTextEmbedding(context.Background(), modelName, text)
 		if err != nil {
 			log.Printf("Error creating embedding for %s: %v", label, err)
 			continue
@@ -208,13 +209,13 @@ func main() {
 	fmt.Println("\n⚠️ Testing error handling...")
 
 	// Test with invalid model name
-	_, err = client.Embed.CreateTextEmbedding("invalid-model", "test text")
+	_, err = client.Embed.CreateTextEmbedding(context.Background(), "invalid-model", "test text")
 	if err != nil {
 		fmt.Printf("   ✅ Correctly handled invalid model error: %v\n", err)
 	}
 
 	// Test with empty text
-	_, err = client.Embed.CreateTextEmbedding(modelName, "")
+	_, err = client.Embed.CreateTextEmbedding(context.Background(), modelName, "")
 	if err != nil {
 		fmt.Printf("   ✅ Correctly handled empty text error: %v\n", err)
 	}
