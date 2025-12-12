@@ -23,6 +23,7 @@ go get github.com/favourthemaster/twelvelabs-go-sdk
 package main
 
 import (
+    "context"
     "fmt"
     "log"
     
@@ -40,7 +41,7 @@ func main() {
     }
 
     // Create an index
-    index, err := client.Indexes.Create(&models.IndexCreateRequest{
+    index, err := client.Indexes.Create(context.Background(), &models.IndexCreateRequest{
         IndexName: "my-videos",
         Models: []models.Model{
             {
@@ -76,7 +77,7 @@ client, err := twelvelabs.NewTwelveLabs(&twelvelabs.Options{
 
 ```go
 // Create an index
-index, err := client.Indexes.Create(&models.IndexCreateRequest{
+index, err := client.Indexes.Create(context.Background(), &models.IndexCreateRequest{
     IndexName: "videos",
     Models: []models.Model{
         {
@@ -87,25 +88,25 @@ index, err := client.Indexes.Create(&models.IndexCreateRequest{
 })
 
 // List all indexes
-indexes, err := client.Indexes.List(map[string]string{})
+indexes, err := client.Indexes.List(context.Background(), map[string]string{})
 
 // Get specific index
-index, err := client.Indexes.Retrieve("your-index-id")
+index, err := client.Indexes.Retrieve(context.Background(), "your-index-id")
 ```
 
 ### 🎬 Video Management
 
 ```go
 // List videos in an index
-videos, err := client.Indexes.Videos.List("your-index-id", map[string]string{
+videos, err := client.Indexes.Videos.List(context.Background(), "your-index-id", map[string]string{
     "page_limit": "10",
 })
 
 // Get video details
-video, err := client.Indexes.Videos.Retrieve("your-index-id", "your-video-id")
+video, err := client.Indexes.Videos.Retrieve(context.Background(), "your-index-id", "your-video-id")
 
 // Update video metadata
-updatedVideo, err := client.Indexes.Videos.Update("your-index-id", "your-video-id", &models.VideoUpdateRequest{
+updatedVideo, err := client.Indexes.Videos.Update(context.Background(), "your-index-id", "your-video-id", &models.VideoUpdateRequest{
     UserMetadata: map[string]string{
         "title": "My Video Title",
         "category": "educational",
@@ -117,13 +118,13 @@ updatedVideo, err := client.Indexes.Videos.Update("your-index-id", "your-video-i
 
 ```go
 // Create a video indexing task
-task, err := client.Tasks.Create(&models.TasksCreateRequest{
+task, err := client.Tasks.Create(context.Background(), &models.TasksCreateRequest{
     IndexID:  "your-index-id",
     VideoURL: "https://example.com/your-video.mp4",
 })
 
 // Wait for task completion
-completedTask, err := client.Tasks.WaitForDone(task.ID, &wrappers.WaitForDoneOptions{
+completedTask, err := client.Tasks.WaitForDone(context.Background(), task.ID, &wrappers.WaitForDoneOptions{
     SleepInterval: 10 * time.Second,
     Callback: func(task *models.Task) error {
         fmt.Printf("Task status: %s\n", task.Status)
@@ -136,21 +137,21 @@ completedTask, err := client.Tasks.WaitForDone(task.ID, &wrappers.WaitForDoneOpt
 
 ```go
 // Text search
-results, err := client.Search.SearchByText(
+results, err := client.Search.SearchByText(context.Background(),
     "your-index-id",
     "your search query",
     []string{"visual", "audio"},
 )
 
 // Image search
-results, err := client.Search.SearchByImage(
+results, err := client.Search.SearchByImage(context.Background(),
     "your-index-id",
     "https://example.com/image.jpg",
     []string{"visual"},
 )
 
 // Advanced search
-results, err := client.Search.Query(&models.SearchQueryRequest{
+results, err := client.Search.Query(context.Background(), &models.SearchQueryRequest{
     IndexID:       "your-index-id",
     QueryText:     "your query",
     SearchOptions: []string{"visual", "audio"},
@@ -161,20 +162,20 @@ results, err := client.Search.Query(&models.SearchQueryRequest{
 
 ```go
 // Basic video analysis
-response, err := client.Analyze.Analyze(&models.AnalyzeRequest{
+response, err := client.Analyze.Analyze(context.Background(), &models.AnalyzeRequest{
     VideoID: "your-video-id",
     Prompt:  "your analysis prompt",
 })
 
 // Generate video summary
-summary, err := client.Analyze.GenerateSummary(&models.GenerateSummaryRequest{
+summary, err := client.Analyze.GenerateSummary(context.Background(), &models.GenerateSummaryRequest{
     VideoID: "your-video-id",
     Type:    "summary",
     Prompt:  "your summary prompt",
 })
 
 // Generate video gist
-gist, err := client.Analyze.GenerateGist(&models.GenerateGistRequest{
+gist, err := client.Analyze.GenerateGist(context.Background(), &models.GenerateGistRequest{
     VideoID: "your-video-id",
     Types:   []string{"title", "topic", "hashtag"},
 })
@@ -184,19 +185,19 @@ gist, err := client.Analyze.GenerateGist(&models.GenerateGistRequest{
 
 ```go
 // Text embedding
-embedding, err := client.Embed.CreateTextEmbedding(
+embedding, err := client.Embed.CreateTextEmbedding(context.Background(),
     "Marengo-retrieval-2.7",
     "your text content",
 )
 
 // Image embedding
-embedding, err := client.Embed.CreateImageEmbedding(
+embedding, err := client.Embed.CreateImageEmbedding(context.Background(),
     "Marengo-retrieval-2.7",
     "https://example.com/image.jpg",
 )
 
 // Video embedding
-embedding, err := client.Embed.CreateVideoEmbedding(
+embedding, err := client.Embed.CreateVideoEmbedding(context.Background(),
     "Marengo-retrieval-2.7",
     "https://example.com/video.mp4",
 )

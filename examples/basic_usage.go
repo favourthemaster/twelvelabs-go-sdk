@@ -1,7 +1,7 @@
 package main
 
 import (
-"context"
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -104,7 +104,7 @@ func main() {
 
 	// 6. Search with text query (basic)
 	fmt.Println("\n🔍 Performing text search...")
-	searchResults, err := client.Search.SearchByText(context.Background(), 
+	searchResults, err := client.Search.SearchByText(context.Background(),
 		index.ID,
 		"your search query here", // Replace with your actual search query
 		[]string{"visual"},
@@ -121,7 +121,7 @@ func main() {
 
 	// 7. Create text embedding
 	fmt.Println("\n🧠 Creating text embedding...")
-	embedding, err := client.Embed.CreateTextEmbedding(context.Background(), 
+	embedding, err := client.Embed.CreateTextEmbedding(context.Background(),
 		"Marengo-retrieval-2.7",
 		"your text here", // Replace with your actual text
 	)

@@ -1,7 +1,7 @@
 package main
 
 import (
-"context"
+	"context"
 	"fmt"
 	"log"
 
@@ -25,7 +25,7 @@ func main() {
 
 	// 1. Basic text search
 	fmt.Println("\n📝 Basic text search...")
-	textResult, err := client.Search.SearchByText(context.Background(), 
+	textResult, err := client.Search.SearchByText(context.Background(),
 		indexID,
 		"your search query here",
 		[]string{"visual", "audio"},
@@ -39,7 +39,7 @@ func main() {
 
 	// 2. Image-based search
 	fmt.Println("\n🖼️ Image-based search...")
-	imageResults, err := client.Search.SearchByImage(context.Background(), 
+	imageResults, err := client.Search.SearchByImage(context.Background(),
 		indexID,
 		"https://example.com/your-image-url.jpg",
 		[]string{"visual"},
@@ -94,7 +94,7 @@ func main() {
 
 		if paginatedResults.PageInfo.NextPageToken != "" {
 			fmt.Println("   📄 Getting next page...")
-			nextPageResults, err := client.Search.Retrieve(context.Background(), 
+			nextPageResults, err := client.Search.Retrieve(context.Background(),
 				paginatedResults.PageInfo.NextPageToken,
 			)
 			if err != nil {
