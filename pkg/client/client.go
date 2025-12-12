@@ -16,7 +16,7 @@ import (
 
 const (
 	DefaultBaseURL = "https://api.twelvelabs.io/v1.3"
-	DefaultTimeout = 60 * time.Second
+	DefaultTimeout = 0 * time.Second
 )
 
 type Client struct {

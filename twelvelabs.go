@@ -112,9 +112,6 @@ func NewTwelveLabs(options *Options) (*TwelveLabs, error) {
 
 	// Set default timeout if not provided
 	timeout := options.Timeout
-	if timeout == 0 {
-		timeout = client.DefaultTimeout
-	}
 
 	clientOptions := &client.Options{
 		APIKey:  apiKey,
