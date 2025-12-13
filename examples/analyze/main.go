@@ -80,7 +80,7 @@ func main() {
 	} else {
 		fmt.Printf("✅ Summary generation completed!\n")
 		fmt.Printf("Chapter ID: %s\n", chapters.ID)
-		fmt.Printf("Chapters: %s\n", chapters.Chapters)
+		fmt.Printf("Chapters: %v\n", chapters.Chapters)
 	}
 
 	highlights, err := client.Analyze.GenerateSummary(context.Background(), &models.GenerateSummaryRequest{
@@ -93,7 +93,7 @@ func main() {
 	} else {
 		fmt.Printf("✅ Summary generation completed!\n")
 		fmt.Printf("Highlight ID: %s\n", highlights.ID)
-		fmt.Printf("Hightlights: %s\n", highlights.Highlights)
+		fmt.Printf("Hightlights: %v\n", highlights.Highlights)
 	}
 
 	// 3. Advanced analysis with custom parameters

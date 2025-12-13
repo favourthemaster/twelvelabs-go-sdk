@@ -190,7 +190,7 @@ func main() {
 	fmt.Println("   To delete a video, uncomment the following code:")
 	fmt.Println("   // err := client.Indexes.Videos.Delete(context.Background(), indexID, videoID)")
 	fmt.Println("   // if err != nil {")
-	fmt.Println("   //     log.Printf(\"Error deleting video: %v\", err)")
+	fmt.Printf("   //     log.Printf(\"Error deleting video: %%v\", err)\n")
 	fmt.Println("   // } else {")
 	fmt.Println("   //     fmt.Printf(\"✅ Video deleted successfully\\n\")")
 	fmt.Println("   // }")

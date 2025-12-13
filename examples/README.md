@@ -24,7 +24,7 @@ videoID := "your-video-id-here" // → Your actual video ID
 
 ## 📁 Example Files
 
-### 1. **basic_usage.go** - Getting Started
+### 1. **basic_usage** - Getting Started
 **Purpose**: Introduction to core SDK functionality
 **What it demonstrates**:
 - Client initialization
@@ -34,10 +34,10 @@ videoID := "your-video-id-here" // → Your actual video ID
 - Text embeddings
 
 ```bash
-go run basic_usage.go
+go run basic_usage/main.go
 ```
 
-### 2. **advanced_usage.go** - Advanced Patterns
+### 2. **advanced_usage** - Advanced Patterns
 **Purpose**: Advanced usage patterns and bulk operations
 **What it demonstrates**:
 - Bulk task creation
@@ -48,10 +48,10 @@ go run basic_usage.go
 - Error handling strategies
 
 ```bash
-go run advanced_usage.go
+go run advanced_usage/main.go
 ```
 
-### 3. **videos_example.go** - Video Management
+### 3. **videos** - Video Management
 **Purpose**: Comprehensive video management operations
 **What it demonstrates**:
 - Listing videos with pagination
@@ -63,10 +63,10 @@ go run advanced_usage.go
 - Organization recommendations
 
 ```bash
-go run videos_example.go
+go run videos/main.go
 ```
 
-### 4. **search_example.go** - Search Capabilities
+### 4. **search** - Search Capabilities
 **Purpose**: All types of search functionality
 **What it demonstrates**:
 - Text-based search
@@ -79,10 +79,10 @@ go run videos_example.go
 - Search result analysis
 
 ```bash
-go run search_example.go
+go run search/main.go
 ```
 
-### 5. **analyze_example.go** - AI Analysis
+### 5. **analyze** - AI Analysis
 **Purpose**: Video analysis and AI-powered features
 **What it demonstrates**:
 - Basic video analysis
@@ -95,10 +95,10 @@ go run search_example.go
 - Error handling for analysis
 
 ```bash
-go run analyze_example.go
+go run analyze/main.go
 ```
 
-### 6. **embeddings_example.go** - Embeddings
+### 6. **embeddings** - Embeddings
 **Purpose**: Embedding generation for all media types
 **What it demonstrates**:
 - Text embeddings (single and batch)
@@ -111,10 +111,10 @@ go run analyze_example.go
 - Error handling for embeddings
 
 ```bash
-go run embeddings_example.go
+go run embeddings/main.go
 ```
 
-### 7. **tasks_example.go** - Task Management
+### 7. **tasks** - Task Management
 **Purpose**: Asynchronous task management and monitoring
 **What it demonstrates**:
 - Single task creation (URL and file)
@@ -126,7 +126,7 @@ go run embeddings_example.go
 - Progress tracking
 
 ```bash
-go run tasks_example.go
+go run tasks/main.go
 ```
 
 ## 🛠️ Setup Instructions
@@ -146,7 +146,7 @@ client, err := twelvelabs.NewTwelveLabs(&twelvelabs.Options{
 // 2. Index ID
 indexID := "your-index-id-here" // ← Replace with your actual index ID
 
-// 3. Video ID (in analyze_example.go)
+// 3. Video ID (in analyze/main.go)
 videoID := "your-video-id-here" // ← Replace with your actual video ID
 
 // 4. Media URLs
@@ -176,8 +176,8 @@ if indexID == "your-index-id-here" {
 cd examples
 
 # Run any example
-go run basic_usage.go
-go run advanced_usage.go
+go run basic_usage/main.go
+go run advanced_usage/main.go
 # ... etc
 ```
 
