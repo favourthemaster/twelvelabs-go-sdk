@@ -15,7 +15,7 @@ const (
 	// APIVersion is the API version this SDK targets.
 	APIVersion = "v1.3"
 	// SDKVersion is the version of this SDK.
-	SDKVersion = "0.3.0"
+	SDKVersion = "1.3.0"
 
 	defaultMaxRetries = 3
 	defaultUserAgent  = "twelvelabs-go-sdk/" + SDKVersion

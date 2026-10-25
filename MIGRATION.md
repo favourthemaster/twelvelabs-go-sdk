@@ -1,6 +1,6 @@
-# Migrating from 0.2.x to 0.3.0
+# Migrating from 0.2.x to 1.3.0
 
-0.3.0 is a clean rewrite for **TwelveLabs API v1.3**. The 0.2.x client targeted v1.2 endpoints, and several of them no longer work: for example, `POST /indexes` now accepts only `marengo3.0`, and video analysis moved from `video_id` to assets.
+1.3.0 is a clean rewrite for **TwelveLabs API v1.3**. The 0.2.x client targeted v1.2 endpoints, and several of them no longer work: for example, `POST /indexes` now accepts only `marengo3.0`, and video analysis moved from `video_id` to assets.
 
 There are no compatibility shims. The package path is unchanged:
 
@@ -14,7 +14,7 @@ import "github.com/favourthemaster/twelvelabs-go-sdk"
 // 0.2.x
 client, err := twelvelabs.NewTwelveLabs(&twelvelabs.Options{APIKey: key})
 
-// 0.3.0
+// 1.3.0
 client, err := twelvelabs.NewClient(twelvelabs.Options{APIKey: key})
 ```
 
@@ -35,7 +35,7 @@ Every method takes a `context.Context` as its first argument. The wrapper layer 
 
 ## Package layout
 
-| 0.2.x | 0.3.0 |
+| 0.2.x | 1.3.0 |
 | --- | --- |
 | `pkg/client` | root package `twelvelabs` |
 | `pkg/models` | root package `twelvelabs` |
@@ -47,7 +47,7 @@ Imports of the old subpackages must be deleted. All types are now `twelvelabs.X`
 
 ## Services
 
-| 0.2.x | 0.3.0 |
+| 0.2.x | 1.3.0 |
 | --- | --- |
 | `client.Indexes.Create` | `client.Indexes.Create` (same name, new model constants) |
 | `client.Indexes.Retrieve` | `client.Indexes.Get` |
@@ -77,7 +77,7 @@ List methods used to return `[]models.T` and accept `map[string]string` filters.
 // 0.2.x
 indexes, err := client.Indexes.List(ctx, map[string]string{"page": "1"})
 
-// 0.3.0
+// 1.3.0
 page, err := client.Indexes.List(ctx, &twelvelabs.IndexListOptions{
 	Pagination: twelvelabs.Pagination{Page: 1, PageLimit: 20},
 })
@@ -96,7 +96,7 @@ The v1.3 API accepts a single model name for indexes:
 // 0.2.x
 Models: []models.Model{{ModelName: "Marengo-retrieval-2.6", ModelOptions: []string{"visual", "conversation"}}}
 
-// 0.3.0
+// 1.3.0
 Models: []twelvelabs.IndexModel{{
 	ModelName:    twelvelabs.ModelMarengo30,
 	ModelOptions: []string{twelvelabs.ModalityVisual, twelvelabs.ModalityAudio},
@@ -124,7 +124,7 @@ Async analysis no longer takes `video_id` directly. Use an asset ID, a URL, or b
 // 0.2.x
 &models.AnalyzeRequest{VideoID: videoID, Prompt: "..."}
 
-// 0.3.0
+// 1.3.0
 &twelvelabs.AnalyzeRequest{
 	ModelName: twelvelabs.ModelPegasus16,
 	Video:     twelvelabs.VideoFromAssetID(assetID),
@@ -156,7 +156,7 @@ The old package exposed one struct per status code (`BadRequestError`, `NotFound
 // 0.2.x
 if _, ok := err.(*errors.NotFoundError); ok { ... }
 
-// 0.3.0
+// 1.3.0
 if twelvelabs.IsNotFound(err) { ... }
 
 var apiErr *twelvelabs.APIError
@@ -175,7 +175,7 @@ Locally rejected requests return `*twelvelabs.ValidationError`, which replaces `
 - `Tasks.CreateBulk`, `Tasks.WaitForCompletion`, and `Tasks.WaitForCompletionWithTimeout`; use `Analyze.CreateBatch` and `WaitForBatch`, or `IndexedAssets.WaitForReady` in a loop.
 - The `Timeout` option; use `HTTPClient` or a context.
 
-## New in 0.3.0
+## New in 1.3.0
 
 - Assets API: direct, URL, and multipart uploads, plus transcription.
 - Indexed assets, including `embedding` and `hls` data.

@@ -1,6 +1,6 @@
 # TwelveLabs Go SDK
 
-A Go client for the [TwelveLabs Video Understanding Platform](https://docs.twelvelabs.io), targeting API **v1.3**.
+A Go client for the [TwelveLabs Video Understanding Platform](https://docs.twelvelabs.io), targeting API **v1.3**. The SDK version (`1.3.0`) mirrors the API version.
 
 TwelveLabs publishes official SDKs for Python and Node.js. There is no official Go SDK; this package is a community client that follows the v1.3 HTTP API closely.
 
@@ -458,7 +458,7 @@ Requests rejected locally (missing IDs, conflicting fields, out-of-range values)
 
 ## Migrating from 0.2.x
 
-Version 0.3 is a breaking rewrite of the v1.2-era client. See [MIGRATION.md](MIGRATION.md).
+Version 1.3.0 is a breaking rewrite of the v1.2-era client. The SDK version mirrors the TwelveLabs API version it targets (`v1.3`). See [MIGRATION.md](MIGRATION.md).
 
 ## Development
 
