@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // Model names accepted by the platform.
@@ -98,12 +99,30 @@ func (s *IndexesService) Create(ctx context.Context, request *IndexCreateRequest
 	if len(request.Models) == 0 {
 		request.Models = []IndexModel{{ModelName: ModelMarengo30, ModelOptions: []string{ModalityVisual, ModalityAudio}}}
 	}
+	if len(request.Models) > 1 {
+		return nil, validationError("Models", "specify exactly one model; indexes support only %q", ModelMarengo30)
+	}
 	for i, model := range request.Models {
-		if model.ModelName == "" {
-			return nil, validationError("Models", "model %d has no ModelName", i)
+		if model.ModelName != ModelMarengo30 {
+			return nil, validationError("Models", "model %d must be %q", i, ModelMarengo30)
 		}
 		if len(model.ModelOptions) == 0 {
-			return nil, validationError("Models", "model %d has no ModelOptions", i)
+			return nil, validationError("Models", "model %d has no ModelOptions; set %q and/or %q", i, ModalityVisual, ModalityAudio)
+		}
+		seen := make(map[string]bool, len(model.ModelOptions))
+		for j, option := range model.ModelOptions {
+			if option != ModalityVisual && option != ModalityAudio {
+				return nil, validationError("Models", "model %d option %d must be %q or %q", i, j, ModalityVisual, ModalityAudio)
+			}
+			if seen[option] {
+				return nil, validationError("Models", "model %d duplicates option %q", i, option)
+			}
+			seen[option] = true
+		}
+	}
+	for i, addon := range request.Addons {
+		if addon != "thumbnail" {
+			return nil, validationError("Addons", "[%d] must be %q", i, "thumbnail")
 		}
 	}
 
@@ -129,9 +148,21 @@ func (s *IndexesService) List(ctx context.Context, options *IndexListOptions) (*
 		setIfNotEmpty(query, "sort_option", options.SortOption)
 		setIfNotEmpty(query, "index_name", options.IndexName)
 		setIfNotEmpty(query, "model_family", options.ModelFamily)
+		if options.ModelFamily != "" && options.ModelFamily != "marengo" && options.ModelFamily != "pegasus" {
+			return nil, validationError("ModelFamily", "must be %q or %q", "marengo", "pegasus")
+		}
 		setIfNotEmpty(query, "created_at", options.CreatedAt)
 		setIfNotEmpty(query, "updated_at", options.UpdatedAt)
-		addStrings(query, "model_options", options.ModelOptions)
+		if len(options.ModelOptions) > 0 {
+			optionsList := make([]string, 0, len(options.ModelOptions))
+			for i, option := range options.ModelOptions {
+				if option != ModalityVisual && option != ModalityAudio && option != ModalityTranscription {
+					return nil, validationError("ModelOptions", "[%d] must be %q, %q, or %q", i, ModalityVisual, ModalityAudio, ModalityTranscription)
+				}
+				optionsList = append(optionsList, option)
+			}
+			query.Set("model_options", strings.Join(optionsList, ","))
+		}
 	}
 
 	var page Page[Index]
@@ -195,8 +226,12 @@ func (s *IndexesService) ListVideos(ctx context.Context, indexID string, options
 		return nil, validationError("indexID", "is required")
 	}
 	var page Page[Video]
+	query, err := indexedAssetQuery(options)
+	if err != nil {
+		return nil, err
+	}
 	path := "/indexes/" + escapePath(indexID) + "/videos"
-	if err := s.client.transport.doJSON(ctx, http.MethodGet, path, indexedAssetQuery(options), nil, &page); err != nil {
+	if err := s.client.transport.doJSON(ctx, http.MethodGet, path, query, nil, &page); err != nil {
 		return nil, err
 	}
 	return &page, nil
@@ -206,26 +241,7 @@ func (s *IndexesService) ListVideos(ctx context.Context, indexID string, options
 //
 // Deprecated: use Client.IndexedAssets.Get.
 func (s *IndexesService) GetVideo(ctx context.Context, indexID, videoID string, options *VideoGetOptions) (*VideoDetail, error) {
-	ctx = ensureContext(ctx)
-	if indexID == "" {
-		return nil, validationError("indexID", "is required")
-	}
-	if videoID == "" {
-		return nil, validationError("videoID", "is required")
-	}
-	query := url.Values{}
-	if options != nil {
-		addStrings(query, "embedding_option", options.EmbeddingOptions)
-		if options.Transcription != nil {
-			query.Set("transcription", boolString(*options.Transcription))
-		}
-	}
-	var video VideoDetail
-	path := "/indexes/" + escapePath(indexID) + "/videos/" + escapePath(videoID)
-	if err := s.client.transport.doJSON(ctx, http.MethodGet, path, query, nil, &video); err != nil {
-		return nil, err
-	}
-	return &video, nil
+	return s.client.IndexedAssets.Get(ctx, indexID, videoID, options)
 }
 
 // UpdateVideoMetadata replaces the user metadata of an indexed asset.

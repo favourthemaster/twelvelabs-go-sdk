@@ -8,7 +8,8 @@ TwelveLabs publishes official SDKs for Python and Node.js. There is no official 
 client, err := twelvelabs.NewClient(twelvelabs.Options{APIKey: os.Getenv("TWELVE_LABS_API_KEY")})
 ```
 
-- Typed request and response models for every endpoint in the v1.3 spec except Agents/Jockey.
+- Typed request and response models for the Models API: assets and multipart uploads, indexes, indexed assets, search, analyze (sync, streaming, tasks, and batches), Embed API v2, entities, webhook events, and the legacy `/tasks` routes.
+- Knowledge Stores, Connections, Responses, and Agents/Jockey are intentionally out of scope.
 - Context-first methods, no hidden globals.
 - Bounded retries with `Retry-After` support.
 - Streaming analysis (NDJSON), batch results (JSON Lines), and resumable multipart uploads.
@@ -224,7 +225,7 @@ err := client.Analyze.Stream(ctx, request, func(event twelvelabs.AnalyzeStreamEv
 })
 ```
 
-If generation fails mid-stream, the final event carries the error and `Stream` returns `*twelvelabs.AnalyzeStreamError` after invoking the handler.
+If generation is truncated, the final `stream_end` event has `FinishReason == "length"` and an `Error` describing the truncation. That is a warning; `Stream` returns `nil` after the handler runs.
 
 ### Async tasks
 
@@ -296,15 +297,15 @@ Batch requests only accept `pegasus1.5`, and a batch cannot mix analysis modes.
 
 ```go
 response, err := client.Embed.Embed(ctx, &twelvelabs.EmbedRequest{
-	InputType:          twelvelabs.EmbedInputText,
+	InputType:          twelvelabs.EmbedInputMulti,
 	ModelName:          twelvelabs.ModelMarengo35,
-	Text:               &twelvelabs.EmbedTextInput{InputText: "a red bicycle"},
+	MultiInput:         &twelvelabs.EmbedMultiInput{InputText: "a red bicycle"},
 	EmbeddingDimension: twelvelabs.EmbeddingDimensions256,
 })
 fmt.Println(len(response.Data[0].Embedding)) // 256
 ```
 
-Video and audio embeddings use `EmbedAudioVideoInput` with `EmbeddingOption`, `EmbeddingScope`, and `Segmentation`:
+The synchronous endpoint accepts `text`, `image`, `text_image`, `audio`, and `video` with Marengo 3.0, and `multi_input` with either model; Marengo 3.0 accepts images only as multi-input sources, while 3.5 also accepts audio, video, and documents. Video and audio embeddings use `EmbedAudioVideoInput` with `EmbeddingOption`, `EmbeddingScope`, and `Segmentation`:
 
 ```go
 response, err := client.Embed.Embed(ctx, &twelvelabs.EmbedRequest{
@@ -330,7 +331,7 @@ task, err := client.Embed.CreateTask(ctx, &twelvelabs.EmbedTaskCreateRequest{
 task, err = client.Embed.WaitForTask(ctx, task.ID, nil)
 ```
 
-Marengo 3.5 adds `EmbeddingDimension`, `EmbeddingUncertainty`, documents, and multi-input embeddings. Marengo 3.0 rejects those fields.
+Marengo 3.5 adds `EmbeddingDimension`, `EmbeddingUncertainty`, document embeddings, and non-image multi-input sources. Marengo 3.0 rejects those.
 
 ## Entities
 
@@ -363,7 +364,9 @@ TwelveLabs signs webhooks with HMAC-SHA256 over `<timestamp>.<raw body>` and sen
 
 ```go
 func handleWebhook(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
+	// Webhook payloads are small; bound the read so an unauthenticated caller
+	// cannot make the handler buffer an arbitrary amount of memory.
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -378,11 +381,27 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	switch event.Type {
 	case twelvelabs.WebhookEventIndexTaskReady:
-		data, _ := event.TaskData()
-		log.Printf("task %s is ready, duration %.1fs", data.ID, data.Metadata.Duration)
+		data, err := event.TaskData()
+		if err != nil {
+			log.Printf("bad payload: %v", err)
+			break
+		}
+		var duration float64
+		if data.Metadata != nil {
+			duration = data.Metadata.Duration
+		}
+		log.Printf("task %s is ready, duration %.1fs", data.ID, duration)
 	case twelvelabs.WebhookEventAnalyzeTaskFailed:
-		data, _ := event.TaskData()
-		log.Printf("analysis %s failed: %s", data.ID, data.Error.Message)
+		data, err := event.TaskData()
+		if err != nil {
+			log.Printf("bad payload: %v", err)
+			break
+		}
+		message := ""
+		if data.Error != nil {
+			message = data.Error.Message
+		}
+		log.Printf("analysis %s failed: %s", data.ID, message)
 	}
 
 	w.WriteHeader(http.StatusOK)

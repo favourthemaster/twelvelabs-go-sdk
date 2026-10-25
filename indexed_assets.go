@@ -3,9 +3,9 @@ package twelvelabs
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -82,21 +82,15 @@ type VideoDetail = IndexedAsset
 
 // VideoGetOptions configures Indexes.GetVideo.
 //
-// Deprecated: use IndexedAssets.Get.
-type VideoGetOptions struct {
-	// EmbeddingOptions requests embeddings for the given modalities, for
-	// example ModalityVisual or ModalityAudio.
-	EmbeddingOptions []string
-	// Transcription requests the transcription of the asset.
-	Transcription *bool
-}
+// Deprecated: use IndexedAssetGetOptions.
+type VideoGetOptions = IndexedAssetGetOptions
 
 // IndexedAssetCreateRequest adds an asset to an index.
 type IndexedAssetCreateRequest struct {
 	// AssetID identifies a ready asset.
 	AssetID string `json:"asset_id"`
 	// EnableVideoStream generates an HLS playlist for the indexed asset. The
-	// API defaults to true.
+	// API defaults to false.
 	EnableVideoStream *bool `json:"enable_video_stream,omitempty"`
 	// UserMetadata is arbitrary key/value metadata scoped to this index entry.
 	UserMetadata map[string]any `json:"user_metadata,omitempty"`
@@ -107,17 +101,42 @@ type UpdateIndexedAssetRequest struct {
 	UserMetadata map[string]any `json:"user_metadata"`
 }
 
+// IndexedAssetGetOptions selects which optional data to retrieve.
+type IndexedAssetGetOptions struct {
+	// EmbeddingOptions requests embeddings for the given modalities. Valid
+	// values are EmbeddingOptionVisual, EmbeddingOptionAudio,
+	// EmbeddingOptionTranscription, and EmbeddingOptionVisualText.
+	EmbeddingOptions []string
+	// Transcription requests the transcription of the asset.
+	Transcription *bool
+}
+
 // IndexedAssetListOptions filters List.
 type IndexedAssetListOptions struct {
 	Pagination
-	SortBy     string
+	// SortBy is "created_at" or "updated_at".
+	SortBy string
+	// SortOption is "asc" or "desc".
 	SortOption string
 	Status     []string
 	Filename   string
-	CreatedAt  string
-	UpdatedAt  string
-	// UserMetadata filters on user metadata. The map is JSON-encoded into the
-	// query string.
+	// Duration filters on the duration in seconds.
+	Duration Range[float64]
+	// FPS filters on frames per second.
+	FPS Range[float64]
+	// Width filters on width in pixels.
+	Width Range[int]
+	// Height filters on height in pixels.
+	Height Range[int]
+	// Size filters on size in bytes.
+	Size Range[float64]
+	// CreatedAt returns indexed assets created on or after this RFC 3339 time.
+	CreatedAt string
+	// UpdatedAt returns indexed assets last updated on or after this RFC 3339
+	// time.
+	UpdatedAt string
+	// UserMetadata filters on user metadata. Each key becomes its own query
+	// parameter, so the values must be strings, numbers, or booleans.
 	UserMetadata map[string]any
 }
 
@@ -152,17 +171,21 @@ func (s *IndexedAssetsService) List(ctx context.Context, indexID string, options
 	if indexID == "" {
 		return nil, validationError("indexID", "is required")
 	}
+	query, err := indexedAssetQuery(options)
+	if err != nil {
+		return nil, err
+	}
 	var page Page[IndexedAsset]
 	path := "/indexes/" + escapePath(indexID) + "/indexed-assets"
-	if err := s.client.transport.doJSON(ctx, http.MethodGet, path, indexedAssetQuery(options), nil, &page); err != nil {
+	if err := s.client.transport.doJSON(ctx, http.MethodGet, path, query, nil, &page); err != nil {
 		return nil, err
 	}
 	return &page, nil
 }
 
-// Get retrieves an indexed asset, including its embeddings and transcription
-// when the platform has generated them.
-func (s *IndexedAssetsService) Get(ctx context.Context, indexID, indexedAssetID string) (*IndexedAsset, error) {
+// Get retrieves an indexed asset. Pass options to request embeddings or the
+// transcription; both are omitted unless explicitly asked for.
+func (s *IndexedAssetsService) Get(ctx context.Context, indexID, indexedAssetID string, options *IndexedAssetGetOptions) (*IndexedAsset, error) {
 	ctx = ensureContext(ctx)
 	if indexID == "" {
 		return nil, validationError("indexID", "is required")
@@ -170,9 +193,19 @@ func (s *IndexedAssetsService) Get(ctx context.Context, indexID, indexedAssetID 
 	if indexedAssetID == "" {
 		return nil, validationError("indexedAssetID", "is required")
 	}
+	query := url.Values{}
+	if options != nil {
+		if err := validateEmbeddingOptions(options.EmbeddingOptions); err != nil {
+			return nil, err
+		}
+		addStrings(query, "embedding_option", options.EmbeddingOptions)
+		if options.Transcription != nil {
+			setIfNotEmpty(query, "transcription", boolString(*options.Transcription))
+		}
+	}
 	var asset IndexedAsset
 	path := "/indexes/" + escapePath(indexID) + "/indexed-assets/" + escapePath(indexedAssetID)
-	if err := s.client.transport.doJSON(ctx, http.MethodGet, path, nil, nil, &asset); err != nil {
+	if err := s.client.transport.doJSON(ctx, http.MethodGet, path, query, nil, &asset); err != nil {
 		return nil, err
 	}
 	return &asset, nil
@@ -221,7 +254,7 @@ func (s *IndexedAssetsService) WaitForReady(ctx context.Context, indexID, indexe
 	}
 
 	for {
-		asset, err := s.Get(ctx, indexID, indexedAssetID)
+		asset, err := s.Get(ctx, indexID, indexedAssetID, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -230,7 +263,7 @@ func (s *IndexedAssetsService) WaitForReady(ctx context.Context, indexID, indexe
 		case IndexedAssetStatusReady:
 			return asset, nil
 		case IndexedAssetStatusFailed:
-			return asset, fmt.Errorf("twelvelabs: indexed asset %s failed", indexedAssetID)
+			return asset, errTaskFailed("indexed asset", indexedAssetID, nil)
 		}
 
 		if options != nil && options.OnPoll != nil {
@@ -247,22 +280,107 @@ func (s *IndexedAssetsService) WaitForReady(ctx context.Context, indexID, indexe
 	}
 }
 
-func indexedAssetQuery(options *IndexedAssetListOptions) url.Values {
+func indexedAssetQuery(options *IndexedAssetListOptions) (url.Values, error) {
 	query := url.Values{}
 	if options == nil {
-		return query
+		return query, nil
 	}
 	query = encodeQuery(&options.Pagination)
+	if err := validateIndexedAssetStatus(options.Status); err != nil {
+		return nil, err
+	}
+	addStrings(query, "status", options.Status)
 	setIfNotEmpty(query, "sort_by", options.SortBy)
 	setIfNotEmpty(query, "sort_option", options.SortOption)
 	setIfNotEmpty(query, "filename", options.Filename)
 	setIfNotEmpty(query, "created_at", options.CreatedAt)
 	setIfNotEmpty(query, "updated_at", options.UpdatedAt)
-	addStrings(query, "status", options.Status)
-	if len(options.UserMetadata) > 0 {
-		if encoded, err := json.Marshal(options.UserMetadata); err == nil {
-			query.Set("user_metadata", string(encoded))
+	if err := encodeRange(query, "duration", options.Duration); err != nil {
+		return nil, err
+	}
+	if err := encodeRange(query, "fps", options.FPS); err != nil {
+		return nil, err
+	}
+	if err := encodeRange(query, "width", options.Width); err != nil {
+		return nil, err
+	}
+	if err := encodeRange(query, "height", options.Height); err != nil {
+		return nil, err
+	}
+	if err := encodeRange(query, "size", options.Size); err != nil {
+		return nil, err
+	}
+	for key, value := range options.UserMetadata {
+		if key == "" {
+			return nil, validationError("UserMetadata", "keys must not be empty")
+		}
+		if query.Has(key) {
+			return nil, validationError("UserMetadata", "key %q conflicts with a built-in query parameter", key)
+		}
+		switch typed := value.(type) {
+		case string:
+			query.Set(key, typed)
+		case bool:
+			query.Set(key, strconv.FormatBool(typed))
+		case int:
+			query.Set(key, strconv.Itoa(typed))
+		case int64:
+			query.Set(key, strconv.FormatInt(typed, 10))
+		case float64:
+			query.Set(key, strconv.FormatFloat(typed, 'f', -1, 64))
+		default:
+			return nil, validationError("UserMetadata", "value for %q must be a string, number, or boolean, got %T", key, value)
 		}
 	}
-	return query
+	return query, nil
+}
+
+func validateIndexedAssetStatus(statuses []string) error {
+	allowed := map[string]bool{
+		IndexedAssetStatusPending:    true,
+		IndexedAssetStatusQueued:     true,
+		IndexedAssetStatusIndexing:   true,
+		IndexedAssetStatusValidating: true,
+		IndexedAssetStatusReady:      true,
+		IndexedAssetStatusFailed:     true,
+	}
+	for i, status := range statuses {
+		if !allowed[status] {
+			return validationError("Status", "[%d] must be a valid indexed asset status", i)
+		}
+	}
+	return nil
+}
+
+func validateEmbeddingOptions(options []string) error {
+	allowed := map[string]bool{
+		EmbeddingOptionVisual:        true,
+		EmbeddingOptionAudio:         true,
+		EmbeddingOptionTranscription: true,
+		EmbeddingOptionVisualText:    true,
+	}
+	for i, option := range options {
+		if !allowed[option] {
+			return validationError("EmbeddingOptions", "[%d] must be %q, %q, %q, or %q",
+				i, EmbeddingOptionVisual, EmbeddingOptionAudio, EmbeddingOptionTranscription, EmbeddingOptionVisualText)
+		}
+	}
+	return nil
+}
+
+// encodeRange writes a Range as the JSON query value the range filters expect,
+// for example duration={"gte":10,"lte":10}.
+func encodeRange[T int | float64](query url.Values, key string, value Range[T]) error {
+	if value.IsZero() {
+		return nil
+	}
+	if value.GTE != nil && value.LTE != nil && *value.GTE > *value.LTE {
+		return validationError(key, "GTE must not be greater than LTE")
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return validationError(key, "cannot be encoded: %v", err)
+	}
+	query.Set(key, string(encoded))
+	return nil
 }

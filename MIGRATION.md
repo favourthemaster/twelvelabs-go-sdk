@@ -52,7 +52,7 @@ Imports of the old subpackages must be deleted. All types are now `twelvelabs.X`
 | `client.Indexes.Create` | `client.Indexes.Create` (same name, new model constants) |
 | `client.Indexes.Retrieve` | `client.Indexes.Get` |
 | `client.Indexes.Videos.List` | `client.IndexedAssets.List` |
-| `client.Indexes.Videos.Retrieve` | `client.IndexedAssets.Get` |
+| `client.Indexes.Videos.Retrieve` | `client.IndexedAssets.Get` (now takes `*IndexedAssetGetOptions`) |
 | `client.Tasks.Create` | `client.Assets.Create` + `client.IndexedAssets.Create` |
 | `client.Tasks.CreateBulk` | `client.Analyze.CreateBatch` (for analysis) or a loop over assets (for indexing) |
 | `client.Tasks.WaitForDone` | `client.IndexedAssets.WaitForReady` |
@@ -85,6 +85,8 @@ indexes := page.Data
 ```
 
 `page.PageInfo` carries `TotalPage`, `TotalResults`, and, for search, `NextPageToken`.
+
+`Entities.AddEntityAssets` and `RemoveEntityAssets` now return the updated `*Entity`, matching the API response, instead of only an error.
 
 ## Index models
 
@@ -143,6 +145,8 @@ response, err := client.Embed.Embed(ctx, &twelvelabs.EmbedRequest{
 	Text:      &twelvelabs.EmbedTextInput{InputText: "hello"},
 })
 ```
+
+Marengo 3.0 uses `text`, `image`, `text_image`, `audio`, `video`, and `multi_input` (image sources only). The Marengo 3.5 synchronous endpoint accepts only `multi_input`, where sources may also be audio, video, or documents; on the asynchronous endpoint, documents and images require 3.5, while audio and video work with either model.
 
 ## Errors
 

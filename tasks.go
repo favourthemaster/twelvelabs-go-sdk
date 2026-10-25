@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 )
 
@@ -72,8 +73,17 @@ type TaskListOptions struct {
 	IndexID    string
 	Status     []string
 	Filename   string
-	CreatedAt  string
-	UpdatedAt  string
+	// Duration filters on the duration in seconds. The API matches this exact
+	// value; it does not accept a range.
+	Duration *float64
+	// Width filters on the width in pixels.
+	Width *int
+	// Height filters on the height in pixels.
+	Height *int
+	// CreatedAt filters on the RFC 3339 creation time.
+	CreatedAt string
+	// UpdatedAt filters on the RFC 3339 update time.
+	UpdatedAt string
 }
 
 // Create starts a legacy indexing task. The task is asynchronous; use
@@ -146,7 +156,32 @@ func (s *TasksService) List(ctx context.Context, options *TaskListOptions) (*Pag
 		setIfNotEmpty(query, "filename", options.Filename)
 		setIfNotEmpty(query, "created_at", options.CreatedAt)
 		setIfNotEmpty(query, "updated_at", options.UpdatedAt)
-		addStrings(query, "status", options.Status)
+		for i, status := range options.Status {
+			switch status {
+			case TaskStatusValidating, TaskStatusPending, TaskStatusQueued, TaskStatusIndexing, TaskStatusReady, TaskStatusFailed:
+				query.Add("status", status)
+			default:
+				return nil, validationError("Status", "[%d] must be a valid task status", i)
+			}
+		}
+		if options.Duration != nil {
+			if *options.Duration < 0 {
+				return nil, validationError("Duration", "must not be negative")
+			}
+			query.Set("duration", strconv.FormatFloat(*options.Duration, 'f', -1, 64))
+		}
+		if options.Width != nil {
+			if *options.Width < 0 {
+				return nil, validationError("Width", "must not be negative")
+			}
+			query.Set("width", strconv.Itoa(*options.Width))
+		}
+		if options.Height != nil {
+			if *options.Height < 0 {
+				return nil, validationError("Height", "must not be negative")
+			}
+			query.Set("height", strconv.Itoa(*options.Height))
+		}
 	}
 
 	var page Page[VideoIndexingTask]

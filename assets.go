@@ -28,6 +28,15 @@ const (
 	AssetMethodConnector = "connector"
 )
 
+// Asset type values. Multipart uploads accept video, audio, and image; List
+// also accepts document.
+const (
+	AssetTypeVideo    = "video"
+	AssetTypeAudio    = "audio"
+	AssetTypeImage    = "image"
+	AssetTypeDocument = "document"
+)
+
 // AssetsService uploads and manages reusable media assets.
 type AssetsService struct {
 	client *Client
@@ -151,6 +160,12 @@ type VideoStream struct {
 	PixelAspectRatio   string  `json:"pixel_aspect_ratio,omitempty"`
 	DisplayAspectRatio string  `json:"display_aspect_ratio,omitempty"`
 	ScanType           string  `json:"scan_type,omitempty"`
+	PixelFormat        string  `json:"pixel_format,omitempty"`
+	BitDepth           int     `json:"bit_depth,omitempty"`
+	ColorRange         string  `json:"color_range,omitempty"`
+	ColorTransfer      string  `json:"color_transfer,omitempty"`
+	ColorSpace         string  `json:"color_space,omitempty"`
+	ColorPrimaries     string  `json:"color_primaries,omitempty"`
 }
 
 // AudioStream describes one audio stream of a media file.
@@ -298,6 +313,14 @@ func (s *AssetsService) List(ctx context.Context, options *AssetListOptions) (*P
 	if options != nil {
 		query = encodeQuery(&options.Pagination)
 		addStrings(query, "asset_ids", options.AssetIDs)
+		for i, assetType := range options.AssetTypes {
+			switch assetType {
+			case AssetTypeVideo, AssetTypeAudio, AssetTypeImage, AssetTypeDocument:
+			default:
+				return nil, validationError("AssetTypes", "[%d] must be %q, %q, %q, or %q",
+					i, AssetTypeVideo, AssetTypeAudio, AssetTypeImage, AssetTypeDocument)
+			}
+		}
 		addStrings(query, "asset_types", options.AssetTypes)
 		if options.Filename != "" {
 			query.Set("filename", options.Filename)
@@ -373,9 +396,12 @@ func (s *AssetsService) Transcription(ctx context.Context, assetID string, inclu
 		return nil, validationError("assetID", "is required")
 	}
 	query := url.Values{}
-	for _, value := range include {
-		if value != "" {
+	for i, value := range include {
+		switch value {
+		case TranscriptionWords, TranscriptionSentences, TranscriptionUtterances:
 			query.Add("include", string(value))
+		default:
+			return nil, validationError("include", "[%d] must be %q, %q, or %q", i, TranscriptionWords, TranscriptionSentences, TranscriptionUtterances)
 		}
 	}
 	var transcription AssetTranscription
@@ -526,11 +552,11 @@ func escapeQuotes(s string) string {
 func assetTypeFromFilename(filename string) (string, error) {
 	switch strings.ToLower(filepath.Ext(filename)) {
 	case ".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi", ".mpeg", ".mpg", ".ts", ".m3u8":
-		return "video", nil
+		return AssetTypeVideo, nil
 	case ".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".opus":
-		return "audio", nil
+		return AssetTypeAudio, nil
 	case ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff":
-		return "image", nil
+		return AssetTypeImage, nil
 	default:
 		return "", validationError("Filename", "cannot infer asset type for %q; set AssetType explicitly", filename)
 	}

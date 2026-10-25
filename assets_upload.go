@@ -3,9 +3,12 @@ package twelvelabs
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 )
 
@@ -17,12 +20,21 @@ const (
 	UploadStatusExpired   = "expired"
 )
 
+const (
+	// maxUploadConcurrency bounds parallel chunk uploads.
+	maxUploadConcurrency = 16
+	// maxPresignedURLBatch is the largest number of URLs the API issues per call.
+	maxPresignedURLBatch = 50
+	// reportChunksBatchSize is the number of proofs sent per report call.
+	reportChunksBatchSize = 100
+)
+
 // MultipartUploadRequest starts a resumable multipart upload. Either set File
 // (Upload then streams it) or call CreateMultipartUpload / ReportChunks
 // manually.
 type MultipartUploadRequest struct {
-	// AssetType must be "video", "audio", or "image". When empty it is inferred
-	// from the filename.
+	// AssetType must be AssetTypeVideo, AssetTypeAudio, or AssetTypeImage. When
+	// empty it is inferred from the filename.
 	AssetType string
 	// Filename is the name the platform stores.
 	Filename string
@@ -31,24 +43,28 @@ type MultipartUploadRequest struct {
 	TotalSize int64
 	// File is the content to upload.
 	File *FileUpload
-	// EnableHLS generates an HLS playlist. The API defaults to true.
+	// EnableHLS generates an HLS playlist. The API defaults to false.
 	EnableHLS *bool
-	// EnableThumbnail generates thumbnails. The API defaults to true.
+	// EnableThumbnail generates thumbnails. The API defaults to false.
 	EnableThumbnail *bool
 	// UserMetadata is arbitrary key/value metadata.
 	UserMetadata map[string]any
-	// Concurrency is the number of chunks uploaded in parallel. Defaults to 3.
+	// Concurrency is the number of chunks uploaded in parallel. Defaults to 3
+	// and is capped at 16.
 	Concurrency int
-	// OnProgress, when set, is called after each chunk is uploaded.
+	// OnProgress, when set, is called after each chunk is uploaded. Calls are
+	// serialized.
 	OnProgress func(uploadedChunks, totalChunks int)
 }
 
 // CreateAssetUploadRequest opens a multipart upload session.
 type CreateAssetUploadRequest struct {
-	Filename        string         `json:"filename"`
-	Type            string         `json:"type"`
-	TotalSize       int64          `json:"total_size"`
-	EnableHLS       *bool          `json:"enable_hls,omitempty"`
+	Filename  string `json:"filename"`
+	Type      string `json:"type"`
+	TotalSize int64  `json:"total_size"`
+	// EnableHLS generates an HLS playlist. The API defaults to false.
+	EnableHLS *bool `json:"enable_hls,omitempty"`
+	// EnableThumbnail generates thumbnails. The API defaults to false.
 	EnableThumbnail *bool          `json:"enable_thumbnail,omitempty"`
 	UserMetadata    map[string]any `json:"user_metadata,omitempty"`
 }
@@ -60,7 +76,9 @@ type PresignedChunk struct {
 	ExpiresAt  string `json:"expires_at,omitempty"`
 }
 
-// CreateAssetUploadResponse describes a newly created upload session.
+// CreateAssetUploadResponse describes a newly created upload session. The
+// response may contain URLs for only some chunks; Upload requests the rest
+// automatically.
 type CreateAssetUploadResponse struct {
 	UploadID      string            `json:"upload_id"`
 	AssetID       string            `json:"asset_id"`
@@ -97,15 +115,13 @@ type UploadStatus struct {
 
 // IncompleteUploadSummary describes an upload session that is still open.
 type IncompleteUploadSummary struct {
-	UploadID     string `json:"upload_id"`
-	Filename     string `json:"filename"`
-	AssetID      string `json:"asset_id"`
-	Status       string `json:"status"`
-	TotalSize    int64  `json:"total_size"`
-	UploadedSize int64  `json:"uploaded_size"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
-	ExpiresAt    string `json:"expires_at"`
+	UploadID    string `json:"upload_id"`
+	Status      string `json:"status"`
+	TotalSize   int64  `json:"total_size"`
+	ChunkSize   int64  `json:"chunk_size"`
+	TotalChunks int    `json:"total_chunks"`
+	CreatedAt   string `json:"created_at,omitempty"`
+	ExpiresAt   string `json:"expires_at,omitempty"`
 }
 
 // CompletedChunk reports a successfully uploaded chunk.
@@ -132,7 +148,9 @@ type ReportChunksResponse struct {
 
 // AdditionalPresignedURLsRequest asks for more presigned URLs.
 type AdditionalPresignedURLsRequest struct {
+	// Start is the 1-based index of the first chunk.
 	Start int `json:"start"`
+	// Count is the number of URLs to request. The API allows 1 to 50.
 	Count int `json:"count"`
 }
 
@@ -155,24 +173,35 @@ func (s *AssetsService) CreateMultipartUpload(ctx context.Context, request *Crea
 	if request.Filename == "" {
 		return nil, validationError("Filename", "is required")
 	}
-	switch request.Type {
-	case "video", "audio", "image":
+
+	body := *request
+	switch body.Type {
+	case AssetTypeVideo, AssetTypeAudio, AssetTypeImage:
 	case "":
-		inferred, err := assetTypeFromFilename(request.Filename)
+		inferred, err := assetTypeFromFilename(body.Filename)
 		if err != nil {
 			return nil, err
 		}
-		request.Type = inferred
+		body.Type = inferred
 	default:
-		return nil, validationError("Type", "must be video, audio, or image")
+		return nil, validationError("Type", "must be %q, %q, or %q", AssetTypeVideo, AssetTypeAudio, AssetTypeImage)
 	}
-	if request.TotalSize <= 0 {
+	if body.TotalSize <= 0 {
 		return nil, validationError("TotalSize", "must be greater than zero")
 	}
 
 	var response CreateAssetUploadResponse
-	if err := s.client.transport.doJSON(ctx, http.MethodPost, "/assets/multipart-uploads", nil, request, &response); err != nil {
+	if err := s.client.transport.doJSON(ctx, http.MethodPost, "/assets/multipart-uploads", nil, &body, &response); err != nil {
 		return nil, err
+	}
+	if response.UploadID == "" {
+		return nil, errEmptyID("upload session")
+	}
+	if response.TotalChunks <= 0 {
+		return nil, fmt.Errorf("twelvelabs: upload session returned an invalid chunk count %d", response.TotalChunks)
+	}
+	if response.ChunkSize <= 0 {
+		return nil, fmt.Errorf("twelvelabs: upload session returned an invalid chunk size %d", response.ChunkSize)
 	}
 	return &response, nil
 }
@@ -201,7 +230,9 @@ func (s *AssetsService) ListIncompleteUploads(ctx context.Context, options *Pagi
 	return &page, nil
 }
 
-// ReportChunks reports successfully uploaded chunks.
+// ReportChunks reports successfully uploaded chunks. Reports larger than the
+// SDK batch size are split into several requests; the returned counts are
+// aggregated.
 func (s *AssetsService) ReportChunks(ctx context.Context, uploadID string, request *ReportChunksRequest) (*ReportChunksResponse, error) {
 	ctx = ensureContext(ctx)
 	if uploadID == "" {
@@ -210,32 +241,71 @@ func (s *AssetsService) ReportChunks(ctx context.Context, uploadID string, reque
 	if request == nil || len(request.CompletedChunks) == 0 {
 		return nil, validationError("CompletedChunks", "at least one chunk is required")
 	}
-	for i := range request.CompletedChunks {
-		chunk := &request.CompletedChunks[i]
+
+	chunks := make([]CompletedChunk, len(request.CompletedChunks))
+	for i, chunk := range request.CompletedChunks {
 		if chunk.ChunkIndex <= 0 {
-			return nil, validationError("ChunkIndex", "chunks are numbered starting from 1")
+			return nil, validationError("CompletedChunks", "chunk %d has an invalid index; chunks are numbered starting from 1", i)
 		}
 		if chunk.Proof == "" {
-			return nil, validationError("Proof", "an ETag is required")
+			return nil, validationError("CompletedChunks", "chunk %d has no proof; an ETag is required", chunk.ChunkIndex)
 		}
-		if chunk.ProofType == "" {
+		if chunk.ChunkSize <= 0 {
+			return nil, validationError("CompletedChunks", "chunk %d has an invalid size %d", chunk.ChunkIndex, chunk.ChunkSize)
+		}
+		switch chunk.ProofType {
+		case "", "etag":
 			chunk.ProofType = "etag"
+		default:
+			return nil, validationError("CompletedChunks", "chunk %d uses unsupported proof type %q", chunk.ChunkIndex, chunk.ProofType)
+		}
+		chunks[i] = chunk
+	}
+
+	var combined ReportChunksResponse
+	for start := 0; start < len(chunks); start += reportChunksBatchSize {
+		end := start + reportChunksBatchSize
+		if end > len(chunks) {
+			end = len(chunks)
+		}
+		var response ReportChunksResponse
+		path := "/assets/multipart-uploads/" + escapePath(uploadID)
+		body := &ReportChunksRequest{CompletedChunks: chunks[start:end]}
+		if err := s.client.transport.doJSON(ctx, http.MethodPost, path, nil, body, &response); err != nil {
+			return nil, err
+		}
+		if response.URL != "" {
+			combined.URL = response.URL
+		}
+		if response.AssetID != "" {
+			combined.AssetID = response.AssetID
+		}
+		combined.ProcessedChunks += response.ProcessedChunks
+		combined.DuplicateChunks += response.DuplicateChunks
+		if response.TotalCompleted > combined.TotalCompleted {
+			combined.TotalCompleted = response.TotalCompleted
 		}
 	}
-	var response ReportChunksResponse
-	path := "/assets/multipart-uploads/" + escapePath(uploadID)
-	if err := s.client.transport.doJSON(ctx, http.MethodPost, path, nil, request, &response); err != nil {
-		return nil, err
-	}
-	return &response, nil
+	return &combined, nil
 }
 
-// RequestPresignedURLs asks for additional presigned upload URLs.
+// RequestPresignedURLs asks for additional presigned upload URLs. Start is
+// 1-based and Count must be between 1 and 50.
 func (s *AssetsService) RequestPresignedURLs(ctx context.Context, uploadID string, request *AdditionalPresignedURLsRequest) (*AdditionalPresignedURLsResponse, error) {
 	ctx = ensureContext(ctx)
 	if uploadID == "" {
 		return nil, validationError("uploadID", "is required")
 	}
+	if request == nil {
+		return nil, validationError("request", "is required")
+	}
+	if request.Start < 1 {
+		return nil, validationError("Start", "must be at least 1; chunks are numbered starting from 1")
+	}
+	if request.Count < 1 || request.Count > maxPresignedURLBatch {
+		return nil, validationError("Count", "must be between 1 and %d", maxPresignedURLBatch)
+	}
+
 	var response AdditionalPresignedURLsResponse
 	path := "/assets/multipart-uploads/" + escapePath(uploadID) + "/presigned-urls"
 	if err := s.client.transport.doJSON(ctx, http.MethodPost, path, nil, request, &response); err != nil {
@@ -247,6 +317,10 @@ func (s *AssetsService) RequestPresignedURLs(ctx context.Context, uploadID strin
 // Upload streams a file using the multipart upload flow: it opens a session,
 // uploads every chunk in parallel, reports them, and returns the created asset.
 // The asset is still processing; call WaitForReady before using it.
+//
+// Presigned URLs included in the create response are reused. Any chunk without
+// a URL is fetched on demand in batches of at most 50. URLs are valid for one
+// hour; an interrupted upload can be resumed with the manual methods.
 func (s *AssetsService) Upload(ctx context.Context, request *MultipartUploadRequest) (*AssetDetail, error) {
 	ctx = ensureContext(ctx)
 	if request == nil {
@@ -297,32 +371,66 @@ func (s *AssetsService) Upload(ctx context.Context, request *MultipartUploadRequ
 		return nil, err
 	}
 
-	completed, err := s.uploadChunks(ctx, request.File.Content, session, request.Concurrency, request.OnProgress)
+	completed, err := s.uploadChunks(ctx, request.File.Content, session, totalSize, request.Concurrency, request.OnProgress)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err := s.ReportChunks(ctx, session.UploadID, &ReportChunksRequest{CompletedChunks: completed}); err != nil {
+	report, err := s.ReportChunks(ctx, session.UploadID, &ReportChunksRequest{CompletedChunks: completed})
+	if err != nil {
 		return nil, err
 	}
 
-	if session.AssetID == "" {
+	assetID := session.AssetID
+	if assetID == "" {
+		assetID = report.AssetID
+	}
+	if assetID == "" {
 		return nil, fmt.Errorf("twelvelabs: upload completed but no asset ID was returned")
 	}
-	return s.Get(ctx, session.AssetID)
+	return s.Get(ctx, assetID)
 }
 
-func (s *AssetsService) uploadChunks(ctx context.Context, content io.Reader, session *CreateAssetUploadResponse, concurrency int, onProgress func(int, int)) ([]CompletedChunk, error) {
+func (s *AssetsService) uploadChunks(ctx context.Context, content io.Reader, session *CreateAssetUploadResponse, totalSize int64, concurrency int, onProgress func(int, int)) ([]CompletedChunk, error) {
+	if session == nil {
+		return nil, validationError("session", "is required")
+	}
 	if session.ChunkSize <= 0 {
 		return nil, fmt.Errorf("twelvelabs: upload session returned an invalid chunk size")
 	}
+	if session.TotalChunks <= 0 {
+		return nil, fmt.Errorf("twelvelabs: upload session returned an invalid chunk count")
+	}
+	if totalSize <= 0 {
+		return nil, validationError("TotalSize", "must be greater than zero")
+	}
+	expectedChunks := (totalSize + session.ChunkSize - 1) / session.ChunkSize
+	if int64(session.TotalChunks) != expectedChunks {
+		return nil, fmt.Errorf("twelvelabs: upload session returned %d chunks for %d bytes at %d bytes per chunk", session.TotalChunks, totalSize, session.ChunkSize)
+	}
+	lastChunkSize := totalSize - session.ChunkSize*int64(session.TotalChunks-1)
+	if lastChunkSize <= 0 || lastChunkSize > session.ChunkSize {
+		return nil, fmt.Errorf("twelvelabs: upload session has an inconsistent size")
+	}
+
 	if concurrency <= 0 {
 		concurrency = 3
+	}
+	if concurrency > maxUploadConcurrency {
+		concurrency = maxUploadConcurrency
+	}
+	if concurrency > session.TotalChunks {
+		concurrency = session.TotalChunks
 	}
 
 	urls := make(map[int]PresignedChunk, len(session.UploadURLs))
 	for _, chunk := range session.UploadURLs {
-		urls[chunk.ChunkIndex] = chunk
+		if chunk.ChunkIndex >= 1 && chunk.ChunkIndex <= session.TotalChunks && chunk.URL != "" {
+			urls[chunk.ChunkIndex] = chunk
+		}
+	}
+	if err := s.ensurePresignedURLs(ctx, session, urls); err != nil {
+		return nil, err
 	}
 
 	type job struct {
@@ -347,14 +455,10 @@ func (s *AssetsService) uploadChunks(ctx context.Context, content io.Reader, ses
 		go func() {
 			defer wg.Done()
 			for j := range jobs {
-				presigned, ok := urls[j.index]
-				if !ok {
-					results <- result{err: fmt.Errorf("twelvelabs: no presigned URL for chunk %d", j.index)}
-					continue
-				}
+				presigned := urls[j.index]
 				etag, err := s.putChunk(ctx, presigned.URL, session.UploadHeaders, j.data)
 				if err != nil {
-					results <- result{err: err}
+					results <- result{err: fmt.Errorf("twelvelabs: chunk %d: %w", j.index, err)}
 					continue
 				}
 				results <- result{chunk: CompletedChunk{
@@ -370,20 +474,18 @@ func (s *AssetsService) uploadChunks(ctx context.Context, content io.Reader, ses
 	go func() {
 		defer close(jobs)
 		for index := 1; index <= session.TotalChunks; index++ {
-			buffer := make([]byte, session.ChunkSize)
+			size := session.ChunkSize
+			if index == session.TotalChunks {
+				size = lastChunkSize
+			}
+			buffer := make([]byte, size)
 			n, err := io.ReadFull(content, buffer)
-			switch err {
-			case nil:
-			case io.ErrUnexpectedEOF:
-				if n == 0 {
-					readErr <- fmt.Errorf("twelvelabs: the upload ended after %d of %d chunks; check TotalSize", index-1, session.TotalChunks)
+			if err != nil {
+				if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+					readErr <- fmt.Errorf("twelvelabs: the upload ended after fewer than the declared %d bytes; check TotalSize: %w", totalSize, err)
 					return
 				}
-			case io.EOF:
-				readErr <- fmt.Errorf("twelvelabs: the upload ended after %d of %d chunks; check TotalSize", index-1, session.TotalChunks)
-				return
-			default:
-				readErr <- fmt.Errorf("twelvelabs: read upload content: %w", err)
+				readErr <- fmt.Errorf("twelvelabs: read upload content for chunk %d of %d: %w", index, session.TotalChunks, err)
 				return
 			}
 			select {
@@ -391,6 +493,18 @@ func (s *AssetsService) uploadChunks(ctx context.Context, content io.Reader, ses
 			case <-ctx.Done():
 				return
 			}
+		}
+
+		// The declared size must match the actual content; otherwise the
+		// final chunk would be silently truncated or the upload would hang.
+		var extra [1]byte
+		n, err := io.ReadFull(content, extra[:])
+		if n > 0 {
+			readErr <- fmt.Errorf("twelvelabs: the upload contains more than the declared %d bytes; check TotalSize", totalSize)
+			return
+		}
+		if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+			readErr <- fmt.Errorf("twelvelabs: read upload content: %w", err)
 		}
 	}()
 
@@ -433,10 +547,58 @@ func (s *AssetsService) uploadChunks(ctx context.Context, content io.Reader, ses
 	return completed, nil
 }
 
+// ensurePresignedURLs requests URLs for every chunk that does not have one.
+// The API issues URLs for contiguous ranges of at most 50 chunks.
+func (s *AssetsService) ensurePresignedURLs(ctx context.Context, session *CreateAssetUploadResponse, urls map[int]PresignedChunk) error {
+	var missing []int
+	for index := 1; index <= session.TotalChunks; index++ {
+		if _, ok := urls[index]; !ok {
+			missing = append(missing, index)
+		}
+	}
+	for position := 0; position < len(missing); {
+		start := missing[position]
+		end := position + 1
+		for end < len(missing) && end-position < maxPresignedURLBatch && missing[end] == start+(end-position) {
+			end++
+		}
+		count := end - position
+
+		response, err := s.RequestPresignedURLs(ctx, session.UploadID, &AdditionalPresignedURLsRequest{
+			Start: start,
+			Count: count,
+		})
+		if err != nil {
+			return err
+		}
+		for _, chunk := range response.UploadURLs {
+			if chunk.ChunkIndex < start || chunk.ChunkIndex >= start+count {
+				return fmt.Errorf("twelvelabs: presigned URL response contains unexpected chunk index %d", chunk.ChunkIndex)
+			}
+			if chunk.URL == "" {
+				return fmt.Errorf("twelvelabs: presigned URL response for chunk %d is empty", chunk.ChunkIndex)
+			}
+			urls[chunk.ChunkIndex] = chunk
+		}
+		for index := start; index < start+count; index++ {
+			if _, ok := urls[index]; !ok {
+				return fmt.Errorf("twelvelabs: the API did not return a presigned URL for chunk %d", index)
+			}
+		}
+		position = end
+	}
+	return nil
+}
+
 func (s *AssetsService) putChunk(ctx context.Context, presignedURL string, headers map[string]string, data []byte) (string, error) {
+	parsed, err := url.Parse(presignedURL)
+	if err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host == "" {
+		return "", fmt.Errorf("invalid presigned URL")
+	}
+
 	request, err := http.NewRequestWithContext(ctx, http.MethodPut, presignedURL, bytes.NewReader(data))
 	if err != nil {
-		return "", fmt.Errorf("twelvelabs: build chunk request: %w", err)
+		return "", fmt.Errorf("build request: %w", err)
 	}
 	for key, value := range headers {
 		request.Header.Set(key, value)
@@ -446,15 +608,35 @@ func (s *AssetsService) putChunk(ctx context.Context, presignedURL string, heade
 	}
 	request.ContentLength = int64(len(data))
 
-	response, err := s.client.transport.httpClient.Do(request)
+	client := s.client.transport.uploadClient
+	if client == nil {
+		client = s.client.transport.httpClient
+	}
+	response, err := client.Do(request)
 	if err != nil {
-		return "", fmt.Errorf("twelvelabs: upload chunk: %w", err)
+		return "", fmt.Errorf("upload chunk: %w", err)
 	}
 	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		body, _, _ := readLimited(response.Body, 512)
+		detail := strings.TrimSpace(string(body))
+		if detail != "" {
+			return "", fmt.Errorf("upload chunk: HTTP %d: %s", response.StatusCode, detail)
+		}
+		return "", fmt.Errorf("upload chunk: HTTP %d", response.StatusCode)
+	}
 	_, _ = io.Copy(io.Discard, response.Body)
 
-	if response.StatusCode >= 400 {
-		return "", fmt.Errorf("twelvelabs: upload chunk: HTTP %d", response.StatusCode)
+	etag := normalizeETag(response.Header.Get("ETag"))
+	if etag == "" {
+		return "", fmt.Errorf("upload chunk: the storage service returned no ETag")
 	}
-	return trimQuotes(response.Header.Get("ETag")), nil
+	return etag, nil
+}
+
+func normalizeETag(etag string) string {
+	etag = strings.TrimSpace(etag)
+	etag = strings.TrimPrefix(etag, "W/")
+	return strings.Trim(etag, `"`)
 }

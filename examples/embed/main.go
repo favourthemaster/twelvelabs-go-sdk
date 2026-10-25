@@ -27,7 +27,7 @@ func main() {
 
 	text, err := client.Embed.Embed(ctx, &twelvelabs.EmbedRequest{
 		InputType: twelvelabs.EmbedInputText,
-		ModelName: twelvelabs.ModelMarengo35,
+		ModelName: twelvelabs.ModelMarengo30,
 		Text:      &twelvelabs.EmbedTextInput{InputText: "a dog catching a frisbee"},
 	})
 	if err != nil {

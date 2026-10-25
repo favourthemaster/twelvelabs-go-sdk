@@ -23,7 +23,7 @@ func main() {
 	verifier := twelvelabs.NewWebhookVerifier(secret)
 
 	http.HandleFunc("/webhooks/twelvelabs", func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(r.Body)
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

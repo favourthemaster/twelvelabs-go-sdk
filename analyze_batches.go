@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"time"
@@ -152,23 +153,40 @@ func (s *AnalyzeService) CreateBatch(ctx context.Context, request *AnalyzeBatchC
 	if len(request.Requests) == 0 {
 		return nil, validationError("Requests", "at least one item is required")
 	}
+	if len(request.Requests) > 1000 {
+		return nil, validationError("Requests", "at most 1000 items are allowed")
+	}
 	if err := request.Defaults.validateDefaults(request.AnalysisMode); err != nil {
 		return nil, err
 	}
-	for i, item := range request.Requests {
+	customIDs := make(map[string]bool, len(request.Requests))
+	for i := range request.Requests {
+		item := &request.Requests[i]
 		if item.Video == nil || item.Video.AssetID == "" {
 			return nil, validationError("Requests", "item %d requires Video.AssetID", i)
 		}
 		if item.Video.Type == "" {
-			request.Requests[i].Video.Type = "asset_id"
+			item.Video.Type = "asset_id"
 		}
 		if item.Video.Type != "asset_id" {
 			return nil, validationError("Requests", `item %d Video.Type must be "asset_id"`, i)
 		}
-		if item.CustomID != "" && !customIDPattern.MatchString(item.CustomID) {
-			return nil, validationError("Requests", "item %d CustomID must match %s", i, customIDPattern)
+		if item.CustomID != "" {
+			if !customIDPattern.MatchString(item.CustomID) {
+				return nil, validationError("Requests", "item %d CustomID must match %s", i, customIDPattern)
+			}
+			if customIDs[item.CustomID] {
+				return nil, validationError("Requests", "item %d CustomID %q is duplicated", i, item.CustomID)
+			}
+			customIDs[item.CustomID] = true
 		}
-		if err := item.ResponseFormat.validate(fmt.Sprintf("Requests[%d].ResponseFormat", i)); err != nil {
+		if err := validateBatchPrompt(fmt.Sprintf("Requests[%d].Prompt", i), item.Prompt, request.AnalysisMode); err != nil {
+			return nil, err
+		}
+		if err := validateBatchResponseFormat(fmt.Sprintf("Requests[%d].ResponseFormat", i), item.ResponseFormat, request.AnalysisMode); err != nil {
+			return nil, err
+		}
+		if err := validateBatchItem(request.Defaults, item, i, request.AnalysisMode); err != nil {
 			return nil, err
 		}
 	}
@@ -182,18 +200,218 @@ func (s *AnalyzeService) CreateBatch(ctx context.Context, request *AnalyzeBatchC
 
 func (d *BatchDefaults) validateDefaults(mode string) error {
 	if d == nil {
-		if mode == AnalysisModeTimeBasedMetadata {
-			return validationError("Defaults", "analysis mode %q requires segment definitions", mode)
-		}
 		return nil
 	}
-	if err := d.ResponseFormat.validate("Defaults.ResponseFormat"); err != nil {
+	if err := validateBatchPrompt("Defaults.Prompt", d.Prompt, mode); err != nil {
 		return err
 	}
-	if mode == AnalysisModeTimeBasedMetadata && d.Prompt != nil {
-		return validationError("Defaults.Prompt", "prompts are not supported with AnalysisMode %q", mode)
+	if err := validateBatchResponseFormat("Defaults.ResponseFormat", d.ResponseFormat, mode); err != nil {
+		return err
+	}
+	if err := validateBatchTemperature("Defaults.Temperature", d.Temperature); err != nil {
+		return err
+	}
+	if err := validateBatchMaxTokens("Defaults.MaxTokens", d.MaxTokens, mode); err != nil {
+		return err
+	}
+	if err := validateSegmentDurationOptions("Defaults", d.MinSegmentDuration, d.MaxSegmentDuration, mode); err != nil {
+		return err
+	}
+	if err := validateBatchTimeWindow("Defaults", d.StartTime, d.EndTime); err != nil {
+		return err
+	}
+	if responseFormatHasTimeRanges(d.ResponseFormat) && (d.StartTime != nil || d.EndTime != nil) {
+		return validationError("Defaults", "segment time ranges cannot be combined with StartTime or EndTime")
+	}
+	if responseFormatHasTimeRanges(d.ResponseFormat) && (d.MinSegmentDuration > 0 || d.MaxSegmentDuration > 0) {
+		return validationError("Defaults", "segment time ranges cannot be combined with segment durations")
 	}
 	return nil
+}
+
+func validateBatchPrompt(field string, prompt *AnalyzePromptV2, mode string) error {
+	if prompt == nil {
+		return nil
+	}
+	if mode == AnalysisModeTimeBasedMetadata {
+		return validationError(field, "prompts are not supported with AnalysisMode %q", mode)
+	}
+	return validatePromptV2(field, prompt)
+}
+
+func validateBatchResponseFormat(field string, format *ResponseFormat, mode string) error {
+	if format == nil {
+		return nil
+	}
+	if err := format.validate(field, responseFormatOptions{
+		modelName:               ModelPegasus15,
+		allowSegmentDefinitions: mode == AnalysisModeTimeBasedMetadata,
+		allowTimeArray:          false,
+	}); err != nil {
+		return err
+	}
+	if mode == AnalysisModeTimeBasedMetadata && format.Type != ResponseFormatSegmentDefinitions {
+		return validationError(field, "analysis mode %q requires segment definitions", mode)
+	}
+	if len(format.SegmentDefinitions) > 20 {
+		return validationError(field, "at most 20 segment definitions are allowed")
+	}
+	return nil
+}
+
+func validateBatchTemperature(field string, temperature *float64) error {
+	if temperature == nil {
+		return nil
+	}
+	if math.IsNaN(*temperature) || math.IsInf(*temperature, 0) || *temperature < 0 || *temperature > 1 {
+		return validationError(field, "must be between 0 and 1")
+	}
+	return nil
+}
+
+func validateBatchMaxTokens(field string, maxTokens int, mode string) error {
+	if maxTokens < 0 {
+		return validationError(field, "must be positive when set")
+	}
+	if maxTokens == 0 {
+		return nil
+	}
+	minimum := 512
+	if mode == AnalysisModeTimeBasedMetadata {
+		minimum = 2048
+	}
+	if maxTokens < minimum || maxTokens > 98304 {
+		return validationError(field, "must be between %d and 98304", minimum)
+	}
+	return nil
+}
+
+func validateSegmentDurationOptions(field string, minDuration, maxDuration float64, mode string) error {
+	if minDuration < 0 || maxDuration < 0 {
+		return validationError(field, "segment durations must be positive when set")
+	}
+	if minDuration == 0 && maxDuration == 0 {
+		return nil
+	}
+	if mode != AnalysisModeTimeBasedMetadata {
+		return validationError(field, "segment durations require AnalysisMode %q", AnalysisModeTimeBasedMetadata)
+	}
+	if minDuration > 0 && minDuration < 2 {
+		return validationError(field, "MinSegmentDuration must be at least 2 seconds")
+	}
+	if maxDuration > 0 && maxDuration < 2 {
+		return validationError(field, "MaxSegmentDuration must be at least 2 seconds")
+	}
+	if minDuration > 0 && maxDuration > 0 && maxDuration < minDuration {
+		return validationError(field, "MaxSegmentDuration must be greater than or equal to MinSegmentDuration")
+	}
+	return nil
+}
+
+func validateBatchTimeWindow(field string, start, end *float64) error {
+	if err := validateTimeWindow(start, end, 1); err != nil {
+		return err
+	}
+	if start != nil && end != nil && *end-*start > 7200 {
+		return validationError(field+".EndTime", "the analysis window must be at most 2 hours")
+	}
+	return nil
+}
+
+func validateBatchItem(defaults *BatchDefaults, item *BatchItem, index int, mode string) error {
+	prefix := fmt.Sprintf("Requests[%d]", index)
+
+	prompt := item.Prompt
+	if prompt == nil && defaults != nil {
+		prompt = defaults.Prompt
+	}
+	if mode == AnalysisModeGeneral && prompt == nil {
+		return validationError(prefix, "general analysis requires Prompt or Defaults.Prompt")
+	}
+
+	format := item.ResponseFormat
+	if format == nil && defaults != nil {
+		format = defaults.ResponseFormat
+	}
+	if mode == AnalysisModeTimeBasedMetadata {
+		if format == nil || format.Type != ResponseFormatSegmentDefinitions {
+			return validationError(prefix, "analysis mode %q requires segment definitions", mode)
+		}
+	}
+
+	var defaultTemperature *float64
+	var defaultMaxTokens int
+	var defaultMinDuration, defaultMaxDuration float64
+	var defaultStart, defaultEnd *float64
+	if defaults != nil {
+		defaultTemperature = defaults.Temperature
+		defaultMaxTokens = defaults.MaxTokens
+		defaultMinDuration = defaults.MinSegmentDuration
+		defaultMaxDuration = defaults.MaxSegmentDuration
+		defaultStart = defaults.StartTime
+		defaultEnd = defaults.EndTime
+	}
+
+	temperature := item.Temperature
+	if temperature == nil {
+		temperature = defaultTemperature
+	}
+	if err := validateBatchTemperature(prefix+".Temperature", temperature); err != nil {
+		return err
+	}
+
+	maxTokens := item.MaxTokens
+	if maxTokens == 0 {
+		maxTokens = defaultMaxTokens
+	}
+	if err := validateBatchMaxTokens(prefix+".MaxTokens", maxTokens, mode); err != nil {
+		return err
+	}
+
+	minDuration := item.MinSegmentDuration
+	if minDuration == 0 {
+		minDuration = defaultMinDuration
+	}
+	maxDuration := item.MaxSegmentDuration
+	if maxDuration == 0 {
+		maxDuration = defaultMaxDuration
+	}
+	if err := validateSegmentDurationOptions(prefix, minDuration, maxDuration, mode); err != nil {
+		return err
+	}
+
+	start := item.StartTime
+	if start == nil {
+		start = defaultStart
+	}
+	end := item.EndTime
+	if end == nil {
+		end = defaultEnd
+	}
+	if err := validateBatchTimeWindow(prefix, start, end); err != nil {
+		return err
+	}
+
+	hasTimeRanges := responseFormatHasTimeRanges(format)
+	if hasTimeRanges && (start != nil || end != nil) {
+		return validationError(prefix, "segment time ranges cannot be combined with StartTime or EndTime")
+	}
+	if hasTimeRanges && (minDuration > 0 || maxDuration > 0) {
+		return validationError(prefix, "segment time ranges cannot be combined with segment durations")
+	}
+	return nil
+}
+
+func responseFormatHasTimeRanges(format *ResponseFormat) bool {
+	if format == nil || format.Type != ResponseFormatSegmentDefinitions {
+		return false
+	}
+	for _, definition := range format.SegmentDefinitions {
+		if len(definition.TimeRanges) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // ListBatches returns batch jobs, most recent first.
@@ -202,8 +420,26 @@ func (s *AnalyzeService) ListBatches(ctx context.Context, options *BatchListOpti
 	query := url.Values{}
 	if options != nil {
 		query = encodeQuery(&options.Pagination)
-		addStrings(query, "status", options.Status)
-		addStrings(query, "analysis_mode", options.AnalysisMode)
+		allowedStatuses := map[string]bool{
+			BatchStatusPending:    true,
+			BatchStatusProcessing: true,
+			BatchStatusCanceling:  true,
+			BatchStatusCanceled:   true,
+			BatchStatusCompleted:  true,
+			BatchStatusExpired:    true,
+		}
+		for i, status := range options.Status {
+			if !allowedStatuses[status] {
+				return nil, validationError("Status", "[%d] must be a valid batch status", i)
+			}
+			query.Add("status", status)
+		}
+		for i, mode := range options.AnalysisMode {
+			if mode != AnalysisModeGeneral && mode != AnalysisModeTimeBasedMetadata {
+				return nil, validationError("AnalysisMode", "[%d] must be %q or %q", i, AnalysisModeGeneral, AnalysisModeTimeBasedMetadata)
+			}
+			query.Add("analysis_mode", mode)
+		}
 	}
 
 	var page Page[AnalyzeBatch]
@@ -278,7 +514,7 @@ func (s *AnalyzeService) StreamBatchResults(ctx context.Context, batchID string,
 	reader, err := s.client.transport.stream(ctx, &request{
 		method: http.MethodGet,
 		path:   "/analyze/batches/" + escapePath(batchID) + "/results",
-		accept: "application/jsonl",
+		accept: "application/jsonl, application/json",
 	})
 	if err != nil {
 		return err

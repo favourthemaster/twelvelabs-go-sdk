@@ -368,19 +368,22 @@ func TestAnalyzeStream(t *testing.T) {
 	}
 }
 
-func TestAnalyzeReportsStreamError(t *testing.T) {
+func TestAnalyzeStreamTruncationIsAWarning(t *testing.T) {
 	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, `{"event_type":"stream_end","finish_reason":"stop","error":{"code":"internal_error","message":"boom"}}`)
+		fmt.Fprintln(w, `{"event_type":"stream_end","finish_reason":"length","error":{"code":"","message":"truncated"}}`)
 	})
 
-	err := client.Analyze.Stream(context.Background(), &AnalyzeRequest{Video: VideoFromURL("https://example.com/a.mp4"), Prompt: "x"}, nil)
-	var streamErr *AnalyzeStreamError
-	if !errors.As(err, &streamErr) {
-		t.Fatalf("expected *AnalyzeStreamError, got %v", err)
+	var final AnalyzeStreamEvent
+	err := client.Analyze.Stream(context.Background(), &AnalyzeRequest{Video: VideoFromURL("https://example.com/a.mp4"), Prompt: "x"}, func(event AnalyzeStreamEvent) error {
+		final = event
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("Stream returned %v, want nil for a truncation warning", err)
 	}
-	if streamErr.Message != "boom" {
-		t.Fatalf("message = %q", streamErr.Message)
+	if final.FinishReason != "length" || final.Error == nil || final.Error.Message != "truncated" {
+		t.Fatalf("unexpected final event %+v", final)
 	}
 }
 
@@ -439,7 +442,7 @@ func TestAnalyzeBatchResultsJSONL(t *testing.T) {
 		if r.URL.Path != "/analyze/batches/batch_1/results" {
 			t.Errorf("path = %q", r.URL.Path)
 		}
-		if accept := r.Header.Get("Accept"); accept != "application/jsonl" {
+		if accept := r.Header.Get("Accept"); accept != "application/jsonl, application/json" {
 			t.Errorf("Accept = %q", accept)
 		}
 		w.Header().Set("Content-Type", "application/jsonl")
@@ -572,9 +575,13 @@ func TestAssetUploadReportsShortContent(t *testing.T) {
 				"asset_id":     "asset_1",
 				"chunk_size":   4,
 				"total_chunks": 2,
-				"upload_urls":  []map[string]any{{"chunk_index": 1, "url": serverURL(r) + "/upload/1"}},
+				"upload_urls": []map[string]any{
+					{"chunk_index": 1, "url": serverURL(r) + "/upload/1"},
+					{"chunk_index": 2, "url": serverURL(r) + "/upload/2"},
+				},
 			})
-		case r.Method == http.MethodPut && r.URL.Path == "/upload/1":
+		case r.Method == http.MethodPut && (r.URL.Path == "/upload/1" || r.URL.Path == "/upload/2"):
+			w.Header().Set("ETag", `"etag"`)
 			w.WriteHeader(http.StatusOK)
 		default:
 			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
@@ -744,5 +751,238 @@ func TestWebhookMalformedHeader(t *testing.T) {
 		if err := NewWebhookVerifier("s").Verify([]byte("{}"), header); !errors.Is(err, ErrMalformedWebhookSignature) {
 			t.Errorf("header %q: expected a malformed error, got %v", header, err)
 		}
+	}
+}
+
+func TestIndexedAssetsListFiltersAndGetOptions(t *testing.T) {
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/indexes/idx_1/indexed-assets":
+			query := r.URL.Query()
+			if got := query.Get("duration"); got != `{"gte":10,"lte":20}` {
+				t.Errorf("duration = %q", got)
+			}
+			if got := query.Get("width"); got != `{"gte":640}` {
+				t.Errorf("width = %q", got)
+			}
+			if got := query.Get("status"); got != "ready" {
+				t.Errorf("status = %q", got)
+			}
+			if got := query.Get("category"); got != "recentlyAdded" {
+				t.Errorf("category = %q", got)
+			}
+			writeJSON(t, w, http.StatusOK, map[string]any{"data": []any{}, "page_info": map[string]any{}})
+		case "/indexes/idx_1/indexed-assets/ia_1":
+			query := r.URL.Query()
+			if got := query["embedding_option"]; len(got) != 2 || got[0] != EmbeddingOptionVisual || got[1] != EmbeddingOptionAudio {
+				t.Errorf("embedding_option = %v", got)
+			}
+			if got := query.Get("transcription"); got != "true" {
+				t.Errorf("transcription = %q", got)
+			}
+			writeJSON(t, w, http.StatusOK, map[string]any{"_id": "ia_1", "asset_id": "asset_1", "status": "ready"})
+		default:
+			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+	})
+
+	if _, err := client.IndexedAssets.List(context.Background(), "idx_1", &IndexedAssetListOptions{
+		Status:       []string{IndexedAssetStatusReady},
+		Duration:     Range[float64]{GTE: ptrFloat(10), LTE: ptrFloat(20)},
+		Width:        Range[int]{GTE: ptrInt(640)},
+		UserMetadata: map[string]any{"category": "recentlyAdded", "inStock": true},
+	}); err != nil {
+		t.Fatalf("List: %v", err)
+	}
+
+	transcription := true
+	if _, err := client.IndexedAssets.Get(context.Background(), "idx_1", "ia_1", &IndexedAssetGetOptions{
+		EmbeddingOptions: []string{EmbeddingOptionVisual, EmbeddingOptionAudio},
+		Transcription:    &transcription,
+	}); err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+}
+
+func TestIndexedAssetValidation(t *testing.T) {
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("unexpected request")
+	})
+	if _, err := client.IndexedAssets.List(context.Background(), "idx_1", &IndexedAssetListOptions{
+		Duration: Range[float64]{GTE: ptrFloat(20), LTE: ptrFloat(10)},
+	}); err == nil {
+		t.Error("expected an error for an inverted range")
+	}
+	if _, err := client.IndexedAssets.List(context.Background(), "idx_1", &IndexedAssetListOptions{
+		Status: []string{"unknown"},
+	}); err == nil {
+		t.Error("expected an error for an unknown status")
+	}
+	if _, err := client.IndexedAssets.Get(context.Background(), "idx_1", "ia_1", &IndexedAssetGetOptions{
+		EmbeddingOptions: []string{"unknown"},
+	}); err == nil {
+		t.Error("expected an error for an unknown embedding option")
+	}
+}
+
+func TestEntitiesAssetMethodsReturnUpdatedEntity(t *testing.T) {
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/entity-collections/ec_1/entities/en_1/assets" {
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+		var body EntityAssetsRequest
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode body: %v", err)
+		}
+		if len(body.AssetIDs) != 1 || body.AssetIDs[0] != "asset_1" {
+			t.Errorf("asset_ids = %v", body.AssetIDs)
+		}
+		status := EntityStatusProcessing
+		if r.Method == http.MethodDelete {
+			status = EntityStatusReady
+		}
+		writeJSON(t, w, http.StatusOK, map[string]any{
+			"_id":       "en_1",
+			"name":      "Ada",
+			"asset_ids": body.AssetIDs,
+			"status":    status,
+		})
+	})
+
+	added, err := client.Entities.AddEntityAssets(context.Background(), "ec_1", "en_1", "asset_1")
+	if err != nil {
+		t.Fatalf("AddEntityAssets: %v", err)
+	}
+	if added.ID != "en_1" || added.Status != EntityStatusProcessing {
+		t.Fatalf("unexpected entity %+v", added)
+	}
+
+	removed, err := client.Entities.RemoveEntityAssets(context.Background(), "ec_1", "en_1", "asset_1")
+	if err != nil {
+		t.Fatalf("RemoveEntityAssets: %v", err)
+	}
+	if removed.ID != "en_1" || removed.Status != EntityStatusReady {
+		t.Fatalf("unexpected entity %+v", removed)
+	}
+}
+
+func TestTaskListFilters(t *testing.T) {
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		if got := query.Get("duration"); got != "12.5" {
+			t.Errorf("duration = %q", got)
+		}
+		if got := query.Get("width"); got != "1920" {
+			t.Errorf("width = %q", got)
+		}
+		if got := query.Get("height"); got != "1080" {
+			t.Errorf("height = %q", got)
+		}
+		if got := query.Get("status"); got != TaskStatusReady {
+			t.Errorf("status = %q", got)
+		}
+		writeJSON(t, w, http.StatusOK, map[string]any{"data": []any{}, "page_info": map[string]any{}})
+	})
+
+	if _, err := client.Tasks.List(context.Background(), &TaskListOptions{
+		Status:   []string{TaskStatusReady},
+		Duration: ptrFloat(12.5),
+		Width:    ptrInt(1920),
+		Height:   ptrInt(1080),
+	}); err != nil {
+		t.Fatalf("List: %v", err)
+	}
+}
+
+func TestIndexCreateValidation(t *testing.T) {
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("unexpected request")
+	})
+	cases := []*IndexCreateRequest{
+		{IndexName: "x", Models: []IndexModel{{ModelName: ModelPegasus15, ModelOptions: []string{ModalityVisual}}}},
+		{IndexName: "x", Models: []IndexModel{{ModelName: ModelMarengo30, ModelOptions: []string{"conversation"}}}},
+		{IndexName: "x", Models: []IndexModel{{ModelName: ModelMarengo30, ModelOptions: []string{ModalityVisual, ModalityVisual}}}},
+		{IndexName: "x", Addons: []string{"unknown"}},
+	}
+	for i, request := range cases {
+		if _, err := client.Indexes.Create(context.Background(), request); err == nil {
+			t.Errorf("case %d: expected a validation error", i)
+		}
+	}
+}
+
+func TestIndexListJoinsModelOptions(t *testing.T) {
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("model_options"); got != "visual,audio" {
+			t.Errorf("model_options = %q", got)
+		}
+		writeJSON(t, w, http.StatusOK, map[string]any{"data": []any{}, "page_info": map[string]any{}})
+	})
+	if _, err := client.Indexes.List(context.Background(), &IndexListOptions{
+		ModelOptions: []string{ModalityVisual, ModalityAudio},
+	}); err != nil {
+		t.Fatalf("List: %v", err)
+	}
+}
+
+func TestSearchRejectsInvalidOptions(t *testing.T) {
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("unexpected request")
+	})
+	cases := []*SearchRequest{
+		{IndexID: "idx_1", SearchOptions: []string{"unknown"}, QueryText: "x"},
+		{IndexID: "idx_1", SearchOptions: []string{ModalityVisual, ModalityVisual}, QueryText: "x"},
+		{IndexID: "idx_1", SearchOptions: []string{ModalityVisual}, QueryText: "x", TranscriptionOptions: []string{TranscriptionOptionLexical}},
+		{IndexID: "idx_1", SearchOptions: []string{ModalityVisual}, QueryText: "x", GroupBy: "scene"},
+		{IndexID: "idx_1", SearchOptions: []string{ModalityVisual}, QueryText: "x", Operator: "xor"},
+		{IndexID: "idx_1", SearchOptions: []string{ModalityVisual}, QueryText: "x", PageLimit: 51},
+	}
+	for i, request := range cases {
+		if _, err := client.Search.Query(context.Background(), request); err == nil {
+			t.Errorf("case %d: expected a validation error", i)
+		}
+	}
+}
+
+func TestAnalyzeSyncTruncationIsAWarning(t *testing.T) {
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(t, w, http.StatusOK, map[string]any{
+			"data":          "partial",
+			"finish_reason": "length",
+			"error":         map[string]any{"message": "truncated"},
+		})
+	})
+	response, err := client.Analyze.Analyze(context.Background(), &AnalyzeRequest{
+		Video:  VideoFromAssetID("asset_1"),
+		Prompt: "x",
+	})
+	if err != nil {
+		t.Fatalf("Analyze returned %v, want nil for a truncation warning", err)
+	}
+	if response.Data != "partial" || response.Error == nil {
+		t.Fatalf("unexpected response %+v", response)
+	}
+}
+
+func ptrFloat(value float64) *float64 { return &value }
+func ptrInt(value int) *int           { return &value }
+
+func TestAssetListValidatesAssetTypes(t *testing.T) {
+	client := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query()["asset_types"]; len(got) != 2 || got[0] != AssetTypeVideo || got[1] != AssetTypeDocument {
+			t.Errorf("asset_types = %v", got)
+		}
+		writeJSON(t, w, http.StatusOK, map[string]any{"data": []any{}, "page_info": map[string]any{}})
+	})
+
+	if _, err := client.Assets.List(context.Background(), &AssetListOptions{
+		AssetTypes: []string{AssetTypeVideo, AssetTypeDocument},
+	}); err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if _, err := client.Assets.List(context.Background(), &AssetListOptions{
+		AssetTypes: []string{"spreadsheet"},
+	}); err == nil {
+		t.Fatal("expected an error for an unknown asset type")
 	}
 }

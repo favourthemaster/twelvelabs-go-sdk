@@ -138,6 +138,37 @@ func (s *SearchService) Query(ctx context.Context, request *SearchRequest) (*Sea
 	if len(request.SearchOptions) == 0 {
 		return nil, validationError("SearchOptions", "at least one of visual, audio, or transcription is required")
 	}
+	seenOptions := make(map[string]bool, len(request.SearchOptions))
+	for i, option := range request.SearchOptions {
+		switch option {
+		case ModalityVisual, ModalityAudio, ModalityTranscription:
+		default:
+			return nil, validationError("SearchOptions", "[%d] must be %q, %q, or %q", i, ModalityVisual, ModalityAudio, ModalityTranscription)
+		}
+		if seenOptions[option] {
+			return nil, validationError("SearchOptions", "[%d] duplicates %q", i, option)
+		}
+		seenOptions[option] = true
+	}
+	for i, option := range request.TranscriptionOptions {
+		switch option {
+		case TranscriptionOptionLexical, TranscriptionOptionSemantic:
+		default:
+			return nil, validationError("TranscriptionOptions", "[%d] must be %q or %q", i, TranscriptionOptionLexical, TranscriptionOptionSemantic)
+		}
+		if !seenOptions[ModalityTranscription] {
+			return nil, validationError("TranscriptionOptions", "requires %q in SearchOptions", ModalityTranscription)
+		}
+	}
+	if request.GroupBy != "" && request.GroupBy != GroupByVideo && request.GroupBy != GroupByClip {
+		return nil, validationError("GroupBy", "must be %q or %q", GroupByVideo, GroupByClip)
+	}
+	if request.Operator != "" && request.Operator != OperatorOr && request.Operator != OperatorAnd {
+		return nil, validationError("Operator", "must be %q or %q", OperatorOr, OperatorAnd)
+	}
+	if request.PageLimit < 0 || request.PageLimit > 50 {
+		return nil, validationError("PageLimit", "must be between 1 and 50 when set")
+	}
 
 	hasMedia := len(request.QueryMediaURLs) > 0 || len(request.QueryMediaFiles) > 0
 	if !hasMedia && request.QueryText == "" {

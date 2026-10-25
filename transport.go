@@ -22,14 +22,22 @@ const (
 	maxRetryDelay = 10 * time.Second
 	// baseRetryDelay is the delay before the first retry.
 	baseRetryDelay = 500 * time.Millisecond
+	// maxResponseBodyBytes bounds buffered JSON responses (64 MiB).
+	maxResponseBodyBytes = 64 << 20
+	// maxErrorBodyBytes bounds the error body retained on APIError (1 MiB).
+	maxErrorBodyBytes = 1 << 20
 )
 
 type transport struct {
 	apiKey     string
 	baseURL    string
 	httpClient *http.Client
-	maxRetries int
-	userAgent  string
+	// uploadClient is used for presigned object-storage URLs. It intentionally
+	// has no same-host redirect guard because uploads may be redirected to a
+	// storage region.
+	uploadClient *http.Client
+	maxRetries   int
+	userAgent    string
 }
 
 type request struct {
@@ -176,7 +184,10 @@ func (t *transport) stream(ctx context.Context, req *request) (io.ReadCloser, er
 	}
 	if resp.StatusCode >= 400 {
 		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
+		body, _, err := readLimited(resp.Body, maxErrorBodyBytes)
+		if err != nil {
+			return nil, fmt.Errorf("twelvelabs: read error response body: %w", err)
+		}
 		return nil, newAPIError(resp, body)
 	}
 	return resp.Body, nil
@@ -185,13 +196,20 @@ func (t *transport) stream(ctx context.Context, req *request) (io.ReadCloser, er
 func decodeResponse(resp *http.Response, out any) error {
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		body, _, err := readLimited(resp.Body, maxErrorBodyBytes)
+		if err != nil {
+			return fmt.Errorf("twelvelabs: read error response body: %w", err)
+		}
+		return newAPIError(resp, body)
+	}
+
+	body, tooLarge, err := readLimited(resp.Body, maxResponseBodyBytes)
 	if err != nil {
 		return fmt.Errorf("twelvelabs: read response body: %w", err)
 	}
-
-	if resp.StatusCode >= 400 {
-		return newAPIError(resp, body)
+	if tooLarge {
+		return fmt.Errorf("%w (limit %d bytes)", ErrResponseTooLarge, maxResponseBodyBytes)
 	}
 
 	if out == nil || len(bytes.TrimSpace(body)) == 0 {
@@ -202,6 +220,18 @@ func decodeResponse(resp *http.Response, out any) error {
 		return fmt.Errorf("twelvelabs: decode response body: %w", err)
 	}
 	return nil
+}
+
+// readLimited reads at most limit bytes and reports whether the input had more.
+func readLimited(reader io.Reader, limit int64) ([]byte, bool, error) {
+	body, err := io.ReadAll(io.LimitReader(reader, limit+1))
+	if err != nil {
+		return nil, false, err
+	}
+	if int64(len(body)) > limit {
+		return body[:limit], true, nil
+	}
+	return body, false, nil
 }
 
 func shouldRetry(method string, err error) bool {

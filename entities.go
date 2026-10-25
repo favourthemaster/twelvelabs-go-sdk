@@ -312,36 +312,46 @@ func (s *EntitiesService) DeleteEntity(ctx context.Context, collectionID, entity
 	return s.client.transport.doJSON(ctx, http.MethodDelete, path, nil, nil, nil)
 }
 
-// AddEntityAssets associates more assets with an entity.
-func (s *EntitiesService) AddEntityAssets(ctx context.Context, collectionID, entityID string, assetIDs ...string) error {
+// AddEntityAssets associates more assets with an entity and returns the
+// updated entity. The entity may report EntityStatusProcessing until the
+// platform finishes matching the new assets.
+func (s *EntitiesService) AddEntityAssets(ctx context.Context, collectionID, entityID string, assetIDs ...string) (*Entity, error) {
 	ctx = ensureContext(ctx)
 	if collectionID == "" {
-		return validationError("collectionID", "is required")
+		return nil, validationError("collectionID", "is required")
 	}
 	if entityID == "" {
-		return validationError("entityID", "is required")
+		return nil, validationError("entityID", "is required")
 	}
 	if len(assetIDs) == 0 {
-		return validationError("AssetIDs", "at least one asset is required")
+		return nil, validationError("AssetIDs", "at least one asset is required")
 	}
-	body := EntityAssetsRequest{AssetIDs: assetIDs}
-	path := "/entity-collections/" + escapePath(collectionID) + "/entities/" + escapePath(entityID) + "/assets"
-	return s.client.transport.doJSON(ctx, http.MethodPost, path, nil, &body, nil)
+	return s.setEntityAssets(ctx, http.MethodPost, collectionID, entityID, assetIDs)
 }
 
-// RemoveEntityAssets dissociates assets from an entity.
-func (s *EntitiesService) RemoveEntityAssets(ctx context.Context, collectionID, entityID string, assetIDs ...string) error {
+// RemoveEntityAssets dissociates assets from an entity and returns the updated
+// entity. The entity may report EntityStatusProcessing until the platform
+// finishes updating the recognition data.
+func (s *EntitiesService) RemoveEntityAssets(ctx context.Context, collectionID, entityID string, assetIDs ...string) (*Entity, error) {
 	ctx = ensureContext(ctx)
 	if collectionID == "" {
-		return validationError("collectionID", "is required")
+		return nil, validationError("collectionID", "is required")
 	}
 	if entityID == "" {
-		return validationError("entityID", "is required")
+		return nil, validationError("entityID", "is required")
 	}
 	if len(assetIDs) == 0 {
-		return validationError("AssetIDs", "at least one asset is required")
+		return nil, validationError("AssetIDs", "at least one asset is required")
 	}
+	return s.setEntityAssets(ctx, http.MethodDelete, collectionID, entityID, assetIDs)
+}
+
+func (s *EntitiesService) setEntityAssets(ctx context.Context, method, collectionID, entityID string, assetIDs []string) (*Entity, error) {
 	body := EntityAssetsRequest{AssetIDs: assetIDs}
 	path := "/entity-collections/" + escapePath(collectionID) + "/entities/" + escapePath(entityID) + "/assets"
-	return s.client.transport.doJSON(ctx, http.MethodDelete, path, nil, &body, nil)
+	var entity Entity
+	if err := s.client.transport.doJSON(ctx, method, path, nil, &body, &entity); err != nil {
+		return nil, err
+	}
+	return &entity, nil
 }

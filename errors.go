@@ -94,6 +94,11 @@ var (
 
 	// ErrMissingWebhookSecret is returned when a verifier has no secret.
 	ErrMissingWebhookSecret = errors.New("twelvelabs: a webhook signing secret is required")
+
+	// ErrResponseTooLarge is returned when a non-streaming response exceeds the
+	// size the SDK is willing to buffer. It protects callers from unbounded
+	// memory use if a proxy or server returns an unexpected payload.
+	ErrResponseTooLarge = errors.New("twelvelabs: response body exceeds the maximum allowed size")
 )
 
 func errEmptyID(resource string) error {

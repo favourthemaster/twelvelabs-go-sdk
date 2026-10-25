@@ -15,6 +15,19 @@ type Pagination struct {
 	PageLimit int
 }
 
+// Range filters a numeric field by inclusive bounds. A nil bound is not sent,
+// so the zero value applies no filter. Setting both bounds to the same value
+// filters for an exact match.
+type Range[T int | float64] struct {
+	GTE *T `json:"gte,omitempty"`
+	LTE *T `json:"lte,omitempty"`
+}
+
+// IsZero reports whether the range has no bounds.
+func (r Range[T]) IsZero() bool {
+	return r.GTE == nil && r.LTE == nil
+}
+
 // PageInfo describes a page of results.
 type PageInfo struct {
 	LimitPerPage int `json:"limit_per_page"`
